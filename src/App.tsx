@@ -22,6 +22,7 @@ import Game from './pages/admin/Game'
 import Sumula from './pages/admin/Sumula'
 import Notices from './pages/admin/Notices'
 import DemoPanel from './components/DemoPanel'
+import UpdateBanner from './components/UpdateBanner'
 import { IS_DEMO } from './lib/supabase'
 
 function MemberLayout() {
@@ -45,7 +46,7 @@ function MoneyOnly({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <>{IS_DEMO && <DemoPanel />}<Screens /></>
+  return <>{IS_DEMO && <DemoPanel />}<Screens /><UpdateBanner /></>
 }
 
 function Screens() {
