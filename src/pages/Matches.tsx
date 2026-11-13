@@ -178,7 +178,7 @@ export default function Matches() {
         return (
           <ShareArt title="Resultado para o grupo" file={`marditos-${sharing.date}`} text={`Real Marditos · ${formatDate(sharing.date)}`} onClose={() => setSharing(null)}>
             <MatchArt date={sharing.date} venue={sharing.venue} preto={side('preto')} branco={side('branco')}
-              scorePreto={sharing.score_preto!} scoreBranco={sharing.score_branco!} photo={sharing.photo_url} mvp={award(sharing.id, 'mvp') || undefined} />
+              scorePreto={sharing.score_preto!} scoreBranco={sharing.score_branco!} photo={sharing.photo_url} mvpIds={winners.filter((w) => w.match_id === sharing.id && w.kind === 'mvp').map((w) => w.player_id)} />
           </ShareArt>
         )
       })()}

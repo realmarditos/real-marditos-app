@@ -16,8 +16,16 @@ export default function ShareArt({ title, file, text, onClose, children }: {
     if (!ref.current) return
     setBusy(true)
     let data: string | null = null
-    try { data = await toPng(ref.current, { pixelRatio: 3, cacheBust: true }) }
-    catch { try { data = await toPng(ref.current, { pixelRatio: 3, skipFonts: true }) } catch { data = null } }
+    const node = ref.current
+    // Espera fontes e imagens carregarem; no iPhone a primeira captura costuma sair sem imagens
+    try { await document.fonts.ready } catch { /* sem suporte */ }
+    await Promise.all([...node.querySelectorAll('img')].map((img) => img.complete && img.naturalWidth ? Promise.resolve() : img.decode().catch(() => {})))
+    try {
+      await toPng(node, { pixelRatio: 1 })
+      data = await toPng(node, { pixelRatio: 3 })
+    } catch {
+      try { data = await toPng(node, { pixelRatio: 3, skipFonts: true }) } catch { data = null }
+    }
     setBusy(false)
     if (!data) return
     try {

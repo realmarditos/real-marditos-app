@@ -2,6 +2,7 @@
  * Artes para mandar no WhatsApp: ranking da temporada e duplas/rivalidades.
  * Tamanho fixo (360 px de largura); a imagem sai em 3x (1080 px).
  */
+import { useEffect, useState } from 'react'
 import type { AvatarOptions, RankingRow } from '../lib/types'
 import { avatarUri } from '../lib/avatar'
 import { IMG } from '../lib/assets'
@@ -134,11 +135,29 @@ export function RivalryArt({ kind, me, other, games, wins, losses }: {
 
 type ArtPlayer = { id: string; name: string; avatar: AvatarOptions | null | undefined; gk?: boolean; guest?: boolean }
 
-/** Resultado de uma partida: placar, vencedores com foto e quem perdeu. */
-export function MatchArt({ date, venue, preto, branco, scorePreto, scoreBranco, photo, mvp }: {
+/** Converte a foto (de outro endereço) em dados locais, para a imagem gerada sempre incluir a foto. */
+function useDataUrl(url?: string | null) {
+  const [data, setData] = useState<string | null>(null)
+  useEffect(() => {
+    if (!url) return
+    let alive = true
+    fetch(url, { mode: 'cors' }).then((r) => r.blob()).then((b) => new Promise<string>((ok, err) => {
+      const fr = new FileReader(); fr.onload = () => ok(String(fr.result)); fr.onerror = err; fr.readAsDataURL(b)
+    })).then((d) => { if (alive) setData(d) }).catch(() => { if (alive) setData(url) })
+    return () => { alive = false }
+  }, [url])
+  return data
+}
+
+const nowrap = { whiteSpace: 'nowrap' as const, overflow: 'hidden', textOverflow: 'ellipsis' }
+
+/** Resultado de uma partida no formato de story (9:16): placar, foto e vencedores, e quem perdeu. */
+export function MatchArt({ date, venue, preto, branco, scorePreto, scoreBranco, photo, mvpIds }: {
   date: string; venue: string; preto: ArtPlayer[]; branco: ArtPlayer[]
-  scorePreto: number; scoreBranco: number; photo?: string | null; mvp?: string
+  scorePreto: number; scoreBranco: number; photo?: string | null; mvpIds?: string[]
 }) {
+  const isMvp = (id: string) => (mvpIds ?? []).includes(id)
+  const photoData = useDataUrl(photo)
   const draw = scorePreto === scoreBranco
   const pretoWon = scorePreto > scoreBranco
   const winners = draw ? [] : pretoWon ? preto : branco
@@ -146,81 +165,81 @@ export function MatchArt({ date, venue, preto, branco, scorePreto, scoreBranco, 
   const [y, m, d] = date.split('-').map(Number)
   const wd = ['DOMINGO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA', 'SÁBADO'][new Date(y, m - 1, d).getDay()]
   const when = `${wd}, ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`
-  const tag = (p: ArtPlayer) => (p.gk ? ' · GOL' : '') + (p.guest ? ' · CONV.' : '')
+  const mark = (p: ArtPlayer) => (p.gk ? ' (GOL)' : '') + (p.guest ? ' (CONV.)' : '')
 
   const Side = ({ label, score, won, dark }: { label: string; score: number; won: boolean; dark: boolean }) => (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, letterSpacing: '.14em', color: won ? GOLD : MUTED }}>
-        <span style={{ width: 12, height: 12, borderRadius: 999, background: dark ? '#000' : INK, border: `2px solid ${dark ? MUTED : INK}` }} />{label}
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, letterSpacing: '.12em', color: won ? GOLD : MUTED, ...nowrap }}>
+        <span style={{ width: 11, height: 11, borderRadius: 999, background: dark ? '#000' : INK, border: `2px solid ${dark ? MUTED : INK}` }} />{label}
       </span>
-      <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 64, lineHeight: '64px', color: won ? INK : MUTED }}>{score}</span>
+      <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 46, lineHeight: '50px', color: won ? INK : MUTED }}>{score}</span>
     </div>
   )
 
-  const Team = ({ list, big }: { list: ArtPlayer[]; big: boolean }) => (
-    <div style={{ display: 'grid', gridTemplateColumns: big ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)', gap: big ? 10 : 6 }}>
-      {list.map((p) => big ? (
-        <div key={p.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-          <div style={{ padding: 2, borderRadius: 14, background: GOLD }}><Av a={p.avatar} seed={p.name} size={60} /></div>
-          <span style={{ fontSize: 12, fontWeight: 700, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}{tag(p)}</span>
-        </div>
-      ) : (
-        <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 6, opacity: 0.75 }}>
-          <Av a={p.avatar} seed={p.name} size={24} />
-          <span style={{ fontSize: 12, color: MUTED, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}{tag(p)}</span>
-        </div>
-      ))}
+  const Winner = ({ p }: { p: ArtPlayer }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 0 }}>
+      <div style={{ position: 'relative', padding: 2, borderRadius: 10, background: GOLD }}>
+        <Av a={p.avatar} seed={p.name} size={34} />
+        {isMvp(p.id) && <img src={IMG.coroa} alt="" style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%) rotate(-8deg)', width: 24 }} />}
+      </div>
+      <span style={{ fontSize: 11, fontWeight: 700, maxWidth: '100%', ...nowrap }}>{p.name}{mark(p) && <span style={{ color: GOLD, fontSize: 9 }}>{mark(p)}</span>}{isMvp(p.id) && <span style={{ color: GOLD, fontSize: 9 }}> · MVP</span>}</span>
     </div>
   )
+  const Loser = ({ p }: { p: ArtPlayer }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, opacity: 0.75 }}>
+      <Av a={p.avatar} seed={p.name} size={18} />
+      <span style={{ fontSize: 11, color: MUTED, ...nowrap }}>{p.name}{mark(p)}{isMvp(p.id) && <span style={{ color: GOLD, fontWeight: 700 }}> ★ MVP</span>}</span>
+    </div>
+  )
+  const label = (t: string, color = MUTED) => <p style={{ margin: 0, fontSize: 10, fontWeight: 800, letterSpacing: '.18em', color, ...nowrap }}>{t}</p>
 
   return (
-    <div style={{ width: 360, background: `${stripes}, ${NAVY}`, color: INK, fontFamily: 'Inter, system-ui, sans-serif' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 16px 4px' }}>
-        <img src={IMG.logo} alt="" style={{ height: 44 }} />
-        <div>
-          <p style={{ margin: 0, fontFamily: DISPLAY, fontWeight: 700, fontSize: 20, lineHeight: '24px', letterSpacing: '.02em' }}>RESULTADO DA QUINTA</p>
-          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: '.14em', color: GOLD }}>{when} · {venue.toUpperCase()}</p>
+    <div style={{ width: 360, height: 640, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: `${stripes}, ${NAVY}`, color: INK, fontFamily: '"Inter", system-ui, sans-serif' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px 0' }}>
+        <img src={IMG.logo} alt="" style={{ height: 40, width: 32, objectFit: 'contain' }} />
+        <div style={{ minWidth: 0 }}>
+          <p style={{ margin: 0, fontFamily: DISPLAY, fontWeight: 700, fontSize: 19, lineHeight: '22px', ...nowrap }}>RESULTADO DA QUINTA</p>
+          <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: '.12em', color: GOLD, ...nowrap }}>{when} · {venue.toUpperCase()}</p>
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', padding: '10px 16px 4px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', padding: '4px 16px 0' }}>
         <Side label="PRETO" score={scorePreto} won={!draw && pretoWon} dark />
-        <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 30, color: MUTED }}>×</span>
+        <span style={{ fontFamily: DISPLAY, fontWeight: 700, fontSize: 26, color: MUTED }}>×</span>
         <Side label="BRANCO" score={scoreBranco} won={!draw && !pretoWon} dark={false} />
       </div>
-      <p style={{ margin: '2px 0 12px', textAlign: 'center', fontFamily: DISPLAY, fontWeight: 700, fontSize: 22, letterSpacing: '.04em', color: draw ? INK : GOLD }}>
+      <p style={{ margin: '4px 0 8px', textAlign: 'center', fontFamily: DISPLAY, fontWeight: 700, fontSize: 20, letterSpacing: '.03em', color: draw ? INK : GOLD, ...nowrap }}>
         {draw ? 'EMPATE' : `VITÓRIA DO TIME ${pretoWon ? 'PRETO' : 'BRANCO'}`}
       </p>
 
       {photo && (
-        <div style={{ position: 'relative', margin: '0 16px 12px' }}>
-          <img src={photo} alt="" crossOrigin="anonymous" style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', borderRadius: 14, display: 'block', border: `2px solid ${GOLD}` }} />
-          <span style={{ position: 'absolute', left: 10, bottom: 10, background: GOLD, color: NAVY, fontSize: 10, fontWeight: 800, letterSpacing: '.14em', padding: '4px 8px', borderRadius: 999 }}>MARDITOS DA NOITE</span>
+        <div style={{ position: 'relative', margin: '0 16px 10px', height: 118, borderRadius: 14, overflow: 'hidden', border: `2px solid ${GOLD}`, background: SURFACE, flex: '0 0 auto' }}>
+          {photoData && <img src={photoData} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
+          <span style={{ position: 'absolute', left: 8, bottom: 8, background: GOLD, color: NAVY, fontSize: 9, fontWeight: 800, letterSpacing: '.12em', padding: '3px 8px', borderRadius: 999, ...nowrap }}>MARDITOS DA NOITE</span>
         </div>
       )}
 
-      {draw ? (
-        <div style={{ padding: '0 16px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: '.16em', color: MUTED }}>PRETO</p><Team list={preto} big={false} />
-          <p style={{ margin: 0, fontSize: 11, fontWeight: 700, letterSpacing: '.16em', color: MUTED }}>BRANCO</p><Team list={branco} big={false} />
-        </div>
-      ) : (
-        <>
-          <div style={{ margin: '0 16px', padding: '12px 10px', background: SURFACE, borderRadius: 14 }}>
-            <p style={{ margin: '0 0 10px', textAlign: 'center', fontSize: 11, fontWeight: 800, letterSpacing: '.2em', color: GOLD }}>★ VENCEDORES ★</p>
-            <Team list={winners} big />
-          </div>
-          <div style={{ padding: '12px 16px 14px' }}>
-            <p style={{ margin: '0 0 8px', fontSize: 11, fontWeight: 700, letterSpacing: '.16em', color: MUTED }}>FICARAM PELO CAMINHO</p>
-            <Team list={losers} big={false} />
-          </div>
-        </>
-      )}
-      {mvp && (
-        <p style={{ margin: '0 16px 14px', padding: '8px 12px', borderRadius: 999, background: RAISED, textAlign: 'center', fontSize: 13, fontWeight: 700 }}>
-          <img src={IMG.coroa} alt="" style={{ width: 18, verticalAlign: 'middle', marginRight: 6 }} />MVP: {mvp}
-        </p>
-      )}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly', gap: 6, padding: '0 16px 6px', minHeight: 0 }}>
+        {draw ? (
+          <>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{label('TIME PRETO')}<div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 5 }}>{preto.map((p) => <Loser key={p.id} p={p} />)}</div></div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{label('TIME BRANCO')}<div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 5 }}>{branco.map((p) => <Loser key={p.id} p={p} />)}</div></div>
+          </>
+        ) : (
+          <>
+            <div style={{ padding: '8px 6px', background: SURFACE, borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ textAlign: 'center' }}>{label('★ VENCEDORES ★', GOLD)}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(winners.length, winners.length > 6 ? 4 : 3) || 1}, minmax(0, 1fr))`, gap: 6 }}>
+                {winners.map((p) => <Winner key={p.id} p={p} />)}
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {label('FICARAM PELO CAMINHO')}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 4 }}>{losers.map((p) => <Loser key={p.id} p={p} />)}</div>
+            </div>
+          </>
+        )}
+      </div>
       <Footer />
     </div>
   )
