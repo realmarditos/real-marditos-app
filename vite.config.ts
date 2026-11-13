@@ -7,6 +7,8 @@ export default defineConfig(({ mode }) => mode === 'demo'
   // Versão de teste: um único HTML, sem servidor
   ? { plugins: [react(), viteSingleFile()], build: { outDir: 'dist-demo', assetsInlineLimit: 100000000 } }
   : {
+  // O site fica em realmarditos.github.io/real-marditos-app/
+  base: '/real-marditos-app/',
   plugins: [
     react(),
     VitePWA({
@@ -21,7 +23,8 @@ export default defineConfig(({ mode }) => mode === 'demo'
         background_color: '#0B0E1A',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        start_url: './',
+        scope: './',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
