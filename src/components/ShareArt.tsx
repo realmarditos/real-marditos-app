@@ -39,7 +39,7 @@ async function renderArt(node: HTMLElement, pixelRatio = 3): Promise<string> {
   const sources = await Promise.all(raster.map(async (img) => {
     const src = img.currentSrc || img.src
     try {
-      const data = src.startsWith('data:') ? src : await toDataUrl(await (await fetch(src, { mode: 'cors' })).blob())
+      const data = src.startsWith('data:') ? src : await toDataUrl(await (await fetch(src, { mode: 'cors', cache: 'no-store' })).blob())
       return await loadImage(data)
     } catch { return null }
   }))

@@ -139,7 +139,7 @@ export default function Sumula() {
             <section className="card stack" style={{ gap: 12 }}>
               <h2 className="h-title" style={{ fontSize: 18 }}>Marditos da Noite</h2>
               {match.photo_url
-                ? <img src={match.photo_url} alt="Foto do time vencedor" style={{ width: '100%', borderRadius: 12, display: 'block' }} />
+                ? <img src={match.photo_url} crossOrigin="anonymous" alt="Foto do time vencedor" style={{ width: '100%', borderRadius: 12, display: 'block' }} />
                 : <p className="small muted" style={{ margin: 0 }}>Poste a foto do time vencedor. Ela aparece no início e na galeria do ano.</p>}
               <label className="btn ghost block sm" style={{ cursor: 'pointer' }}>
                 {busy ? 'Enviando…' : match.photo_url ? 'Trocar foto' : 'Escolher foto'}

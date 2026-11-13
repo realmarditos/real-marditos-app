@@ -272,7 +272,7 @@ export default function Home() {
           )}
           {last.photo_url && (
             <Link to="/partidas?aba=marditos" style={{ display: 'block' }}>
-              <img src={last.photo_url} alt="Marditos da Noite: time vencedor" style={{ width: '100%', borderRadius: 12, display: 'block', aspectRatio: '4 / 3', objectFit: 'cover' }} />
+              <img src={last.photo_url} crossOrigin="anonymous" alt="Marditos da Noite: time vencedor" style={{ width: '100%', borderRadius: 12, display: 'block', aspectRatio: '4 / 3', objectFit: 'cover' }} />
             </Link>
           )}
         </section>

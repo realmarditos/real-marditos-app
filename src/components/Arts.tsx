@@ -141,7 +141,7 @@ function useDataUrl(url?: string | null) {
   useEffect(() => {
     if (!url) return
     let alive = true
-    fetch(url, { mode: 'cors' }).then((r) => r.blob()).then((b) => new Promise<string>((ok, err) => {
+    fetch(url, { mode: 'cors', cache: 'no-store' }).then((r) => r.blob()).then((b) => new Promise<string>((ok, err) => {
       const fr = new FileReader(); fr.onload = () => ok(String(fr.result)); fr.onerror = err; fr.readAsDataURL(b)
     })).then((d) => { if (alive) setData(d) }).catch(() => { if (alive) setData(url) })
     return () => { alive = false }

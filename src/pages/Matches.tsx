@@ -84,7 +84,7 @@ export default function Matches() {
               const w = winnerTeam(m)
               return (
                 <button key={m.id} onClick={() => setZoom(m)} style={{ padding: 0, border: 0, background: 'var(--surface)', borderRadius: 12, overflow: 'hidden', textAlign: 'left', color: 'var(--ink)' }}>
-                  <img src={m.photo_url!} alt={`Vencedores de ${formatDate(m.date, false)}`} style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', display: 'block' }} />
+                  <img src={m.photo_url!} crossOrigin="anonymous" alt={`Vencedores de ${formatDate(m.date, false)}`} style={{ width: '100%', aspectRatio: '1 / 1', objectFit: 'cover', display: 'block' }} />
                   <span style={{ display: 'block', padding: '8px 10px' }}>
                     <span className="caption muted" style={{ display: 'block' }}>{formatDate(m.date, false)} · {m.score_preto} × {m.score_branco}</span>
                     <span className="small" style={{ fontWeight: 600 }}>{w ? TEAM_LABEL[w] : 'Empate'}</span>
@@ -117,7 +117,7 @@ export default function Matches() {
                 </button>
                 {isOpen && (
                   <>
-                    {m.photo_url && <img src={m.photo_url} alt="Time vencedor" style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', display: 'block' }} />}
+                    {m.photo_url && <img src={m.photo_url} crossOrigin="anonymous" alt="Time vencedor" style={{ width: '100%', aspectRatio: '4 / 3', objectFit: 'cover', display: 'block' }} />}
                     <div className="grid2" style={{ gap: 16, borderTop: '1px solid var(--border)', padding: '12px 16px' }}>
                       {(['preto', 'branco'] as const).map((t) => (
                         <div key={t}>
@@ -162,7 +162,7 @@ export default function Matches() {
       {zoom && (
         <div className="sheet-bg" style={{ alignItems: 'center' }} onClick={() => setZoom(null)}>
           <figure style={{ margin: 16, maxWidth: 480, width: '100%' }}>
-            <img src={zoom.photo_url!} alt="Time vencedor" style={{ width: '100%', borderRadius: 12, display: 'block' }} />
+            <img src={zoom.photo_url!} crossOrigin="anonymous" alt="Time vencedor" style={{ width: '100%', borderRadius: 12, display: 'block' }} />
             <figcaption className="small" style={{ marginTop: 8, textAlign: 'center' }}>
               {formatDate(zoom.date)} · {winnerText(zoom)} · {zoom.score_preto} × {zoom.score_branco}
               {award(zoom.id, 'mvp') && <> · MVP {award(zoom.id, 'mvp')}</>}
