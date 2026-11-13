@@ -40,7 +40,7 @@ export default function UpdateBanner() {
         <p style={{ margin: '2px 0 0', fontSize: 13, lineHeight: '17px' }}>{note}</p>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <button onClick={update} disabled={busy} style={{ border: 0, borderRadius: 999, padding: '10px 16px', background: 'var(--brand-navy)', color: 'var(--ink)', fontWeight: 700, fontSize: 14 }}>{busy ? 'Atualizando…' : 'Atualizar'}</button>
+        <button onClick={update} disabled={busy} style={{ border: 0, borderRadius: 999, padding: '10px 16px', background: 'var(--brand-navy)', color: 'var(--ink)', fontWeight: 700, fontSize: 14 }}>{busy ? 'Recarregando…' : 'Recarregar página'}</button>
         <button onClick={() => setNeedRefresh(false)} aria-label="Depois" style={{ border: 0, background: 'none', color: 'var(--brand-navy)', fontSize: 12, fontWeight: 600 }}>Depois</button>
       </div>
     </div>
