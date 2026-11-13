@@ -99,7 +99,7 @@ export default function Home() {
     <main className="screen">
       <header className="between">
         <div className="row" style={{ gap: 12 }}>
-          <img src={IMG.escudo} alt="Escudo" style={{ width: 36, height: 36 }} />
+          <img src={IMG.logo} alt="Real Marditos FC" style={{ height: 46, width: "auto" }} />
           <div>
             <p className="caption muted" style={{ margin: 0 }}>{hello},</p>
             <p style={{ margin: 0, fontWeight: 600 }}>{player?.name}</p>
