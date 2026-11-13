@@ -277,6 +277,7 @@ export default function Home() {
           )}
         </section>
       )}
+      <EventsHome show="respondidos" />
       {toastNode}
     </main>
   )

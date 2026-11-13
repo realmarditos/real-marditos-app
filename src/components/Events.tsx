@@ -21,14 +21,22 @@ function useEvents() {
     setRsvps((r as EventRsvp[]) ?? [])
     setNames(Object.fromEntries(((p as Player[]) ?? []).map((x) => [x.id, x.name])))
   }, [])
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    // As duas listas (respondidos e não respondidos) se atualizam juntas
+    window.addEventListener('marditos:events', load)
+    return () => window.removeEventListener('marditos:events', load)
+  }, [load])
   return { events, rsvps, names, load }
 }
 
 const headcount = (rs: EventRsvp[]) => rs.filter((r) => r.rsvp === 'vou').reduce((t, r) => t + 1 + r.guests, 0)
 
-/** Próximos eventos no início, com Vou / Não vou e acompanhantes. */
-export function EventsHome() {
+/**
+ * Próximos eventos no início, com Vou / Não vou e acompanhantes.
+ * "pendentes" fica no topo; depois que a pessoa responde, o evento desce para o fim da tela.
+ */
+export function EventsHome({ show = 'pendentes' }: { show?: 'pendentes' | 'respondidos' }) {
   const { player } = useAuth()
   const { events, rsvps, names, load } = useEvents()
   const [error, setError] = useState('')
@@ -37,13 +45,15 @@ export function EventsHome() {
     if (!player) return
     const { error } = await supabase.from('event_rsvps').upsert({ event_id: ev.id, player_id: player.id, rsvp, guests, updated_at: new Date().toISOString() })
     if (error) return setError(errorText(error))
-    load()
+    window.dispatchEvent(new Event('marditos:events'))
   }
 
-  if (!events.length) return null
+  const answered = (ev: ClubEvent) => rsvps.some((r) => r.event_id === ev.id && r.player_id === player?.id)
+  const list = events.filter((ev) => (show === 'respondidos') === answered(ev))
+  if (!list.length) return null
   return (
     <>
-      {events.map((ev) => {
+      {list.map((ev) => {
         const rs = rsvps.filter((r) => r.event_id === ev.id)
         const mine = rs.find((r) => r.player_id === player?.id)
         const going = rs.filter((r) => r.rsvp === 'vou')
