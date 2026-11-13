@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { toPng } from 'html-to-image'
+import { toCanvas } from 'html-to-image'
 
 const isIOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1))
 
@@ -7,19 +7,80 @@ const toDataUrl = (blob: Blob) => new Promise<string>((ok, err) => {
   const fr = new FileReader(); fr.onload = () => ok(String(fr.result)); fr.onerror = err; fr.readAsDataURL(blob)
 })
 
-/** Troca toda imagem da arte por dados embutidos: no iPhone, imagens por endereço somem da captura. */
-async function inlineImages(node: HTMLElement) {
-  const imgs = [...node.querySelectorAll('img')]
-  await Promise.all(imgs.map(async (img) => {
-    const src = img.getAttribute('src') ?? ''
-    if (src && !src.startsWith('data:')) {
-      try {
-        const blob = await (await fetch(src, { mode: 'cors' })).blob()
-        img.src = await toDataUrl(blob)
-      } catch { /* deixa como está */ }
-    }
-    try { await img.decode() } catch { /* imagem quebrada: segue sem ela */ }
+const loadImage = (src: string) => new Promise<HTMLImageElement>((ok, err) => {
+  const im = new Image(); im.onload = () => ok(im); im.onerror = err; im.src = src
+})
+
+/** Posição de um elemento dentro da arte, sem contar a escala da prévia. */
+function offsetIn(el: HTMLElement, root: HTMLElement) {
+  let x = 0, y = 0, cur: HTMLElement | null = el
+  while (cur && cur !== root) {
+    x += cur.offsetLeft; y += cur.offsetTop
+    cur = cur.offsetParent as HTMLElement | null
+    if (cur && cur !== root) { x += cur.clientLeft; y += cur.clientTop }
+  }
+  return { x, y }
+}
+
+function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const rr = Math.max(0, Math.min(r, w / 2, h / 2))
+  ctx.beginPath()
+  ctx.moveTo(x + rr, y); ctx.arcTo(x + w, y, x + w, y + h, rr); ctx.arcTo(x + w, y + h, x, y + h, rr)
+  ctx.arcTo(x, y + h, x, y, rr); ctx.arcTo(x, y, x + w, y, rr); ctx.closePath()
+}
+
+/**
+ * Gera a imagem da arte. No iPhone, fotos e PNGs somem quando o HTML vira imagem;
+ * então a arte é capturada sem eles e cada um é desenhado por cima, no lugar certo.
+ */
+async function renderArt(node: HTMLElement, pixelRatio = 3): Promise<string> {
+  const raster = [...node.querySelectorAll('img')].filter((img) => !(img.getAttribute('src') ?? '').startsWith('data:image/svg'))
+  // Carrega cada imagem como dados locais (inclusive a foto, que vem de outro endereço)
+  const sources = await Promise.all(raster.map(async (img) => {
+    const src = img.currentSrc || img.src
+    try {
+      const data = src.startsWith('data:') ? src : await toDataUrl(await (await fetch(src, { mode: 'cors' })).blob())
+      return await loadImage(data)
+    } catch { return null }
   }))
+  const prevPos = node.style.position
+  node.style.position = 'relative'
+  const boxes = raster.map((img) => {
+    const { x, y } = offsetIn(img, node)
+    const cs = getComputedStyle(img)
+    let radius = parseFloat(cs.borderTopLeftRadius) || 0
+    const parent = img.parentElement
+    if (parent && getComputedStyle(parent).overflow === 'hidden') {
+      const ps = getComputedStyle(parent)
+      radius = Math.max(radius, (parseFloat(ps.borderTopLeftRadius) || 0) - (parseFloat(ps.borderTopWidth) || 0))
+    }
+    return { x, y, w: img.offsetWidth, h: img.offsetHeight, fit: cs.objectFit, radius }
+  })
+  raster.forEach((img) => { img.style.visibility = 'hidden' })
+  try {
+    const canvas = await toCanvas(node, { pixelRatio })
+    const ctx = canvas.getContext('2d')!
+    boxes.forEach((b, i) => {
+      const im = sources[i]
+      if (!im || !b.w || !b.h) return
+      const iw = im.naturalWidth, ih = im.naturalHeight
+      let dx = b.x, dy = b.y, dw = b.w, dh = b.h, sx = 0, sy = 0, sw = iw, sh = ih
+      if (b.fit === 'cover') {
+        const s = Math.max(b.w / iw, b.h / ih); sw = b.w / s; sh = b.h / s; sx = (iw - sw) / 2; sy = (ih - sh) / 2
+      } else if (b.fit === 'contain') {
+        const s = Math.min(b.w / iw, b.h / ih); dw = iw * s; dh = ih * s; dx = b.x + (b.w - dw) / 2; dy = b.y + (b.h - dh) / 2
+      }
+      ctx.save()
+      ctx.scale(pixelRatio, pixelRatio)
+      if (b.radius) { roundRect(ctx, b.x, b.y, b.w, b.h, b.radius); ctx.clip() }
+      ctx.drawImage(im, sx, sy, sw, sh, dx, dy, dw, dh)
+      ctx.restore()
+    })
+    return canvas.toDataURL('image/png')
+  } finally {
+    raster.forEach((img) => { img.style.visibility = '' })
+    node.style.position = prevPos
+  }
 }
 
 /**
@@ -52,14 +113,11 @@ export default function ShareArt({ title, file, text, onClose, children }: {
     let data: string | null = null
     const node = ref.current
     try { await document.fonts.ready } catch { /* sem suporte */ }
-    await inlineImages(node)
     try {
-      // O iPhone costuma precisar de algumas passadas até as imagens entrarem
-      for (let i = 0; i < (isIOS ? 3 : 1); i++) await toPng(node, { pixelRatio: 1 })
-      data = await toPng(node, { pixelRatio: 3 })
-    } catch {
-      try { data = await toPng(node, { pixelRatio: 3, skipFonts: true }) } catch { data = null }
-    }
+      // O iPhone às vezes precisa de uma passada antes de acertar as fontes
+      if (isIOS) await renderArt(node, 1)
+      data = await renderArt(node, 3)
+    } catch { data = null }
     setBusy(false)
     if (!data) return
     try {

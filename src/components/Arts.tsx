@@ -180,7 +180,7 @@ export function MatchArt({ date, venue, preto, branco, scorePreto, scoreBranco, 
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, minWidth: 0 }}>
       <div style={{ position: 'relative', padding: 2, borderRadius: 10, background: GOLD }}>
         <Av a={p.avatar} seed={p.name} size={34} />
-        {isMvp(p.id) && <img src={IMG.coroa} alt="" style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%) rotate(-8deg)', width: 24 }} />}
+        {isMvp(p.id) && <img src={IMG.coroa} alt="" style={{ position: 'absolute', top: -12, left: 'calc(50% - 12px)', width: 24 }} />}
       </div>
       <span style={{ fontSize: 10, fontWeight: 700, maxWidth: '100%', ...nowrap }}>{p.name}</span>
       <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '.06em', color: GOLD, height: 10, lineHeight: '10px', marginTop: -2, ...nowrap }}>
