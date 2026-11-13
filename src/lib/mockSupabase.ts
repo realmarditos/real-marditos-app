@@ -124,7 +124,7 @@ function seed(): DB {
 
   const db: DB = {
     _users: users,
-    club_settings: [{ id: 1, club_code: DEMO_CODE, season: now.getFullYear(), confirm_deadline: '14:00:00', max_players: 12, pts_win: 3, pts_draw: 1, pts_loss: 0, pts_presence: 1, pts_mvp: 1, fee_line: 50, fee_goalkeeper: 15, fee_away: 15, due_day: 10, reminder_day: 5, pix_key: 'realmarditos@gmail.com', pix_name: 'REAL MARDITOS FC', pix_city: 'GASPAR', opening_balance: 0 }],
+    club_settings: [{ id: 1, club_code: DEMO_CODE, season: now.getFullYear(), confirm_deadline: '14:00:00', max_players: 12, pts_win: 3, pts_draw: 1, pts_loss: 0, pts_presence: 1, pts_mvp: 1, fee_line: 50, fee_goalkeeper: 15, fee_away: 15, due_day: 10, reminder_day: 5, pix_key: 'realmarditos@gmail.com', pix_name: 'REAL MARDITOS FC', pix_city: 'GASPAR', opening_balance: 0, cash_start: '2000-01-01', court_fee: 70 }],
     players, player_ratings: ratings, matches, attendances: att,
     announcements: [{ id: 'a1', body: 'Bem-vindos ao app do Real Marditos! Esta é a versão de teste.', pinned: true, created_at: new Date().toISOString(), created_by: pedro.id }],
     draw_separations: [{ id: 's1', player_a: pid('Japa'), player_b: pid('Daniel') }],

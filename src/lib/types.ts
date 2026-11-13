@@ -91,9 +91,13 @@ export type Settings = {
   pix_name: string | null
   pix_city: string | null
   opening_balance: number
+  /** Dia em que o caixa passou para o app (o saldo inicial vale nesta data) */
+  cash_start: string
+  /** Custo da quadra por jogo, para a previsão */
+  court_fee: number
 }
 
-export const SETTINGS_COLS = 'season,confirm_deadline,max_players,pts_win,pts_draw,pts_loss,pts_presence,pts_mvp,fee_line,fee_goalkeeper,fee_away,due_day,reminder_day,pix_key,pix_name,pix_city,opening_balance'
+export const SETTINGS_COLS = 'season,confirm_deadline,max_players,pts_win,pts_draw,pts_loss,pts_presence,pts_mvp,fee_line,fee_goalkeeper,fee_away,due_day,reminder_day,pix_key,pix_name,pix_city,opening_balance,cash_start,court_fee'
 
 export const isAdminRole = (r?: Role | null) => r === 'presidente' || r === 'tesoureiro' || r === 'organizador'
 export const canManageGame = (r?: Role | null) => r === 'presidente' || r === 'organizador'

@@ -39,7 +39,11 @@ create table club_settings (
   pix_city         text default 'GASPAR',
   opening_balance  numeric(10,2) not null default 0,
   -- pontos iniciais (ranking de antes do app) só valem nesta temporada
-  initial_points_season int not null default 2026
+  initial_points_season int not null default 2026,
+  -- Caixa: o saldo inicial vale nesta data (dia em que o caixa passou para o app)
+  cash_start       date not null default current_date,
+  -- Previsão: quanto custa a quadra por jogo
+  court_fee        numeric(10,2) not null default 70
 );
 
 create table players (
@@ -513,13 +517,15 @@ end $$;
 create or replace function cash_balance()
 returns table (balance numeric, dues_paid numeric, income numeric, expenses numeric)
 language sql stable security definer set search_path = public as $$
+  -- Saldo = saldo de quando o app começou (cash_start) + o que entrou e saiu dali em diante
   select
     s.opening_balance + coalesce(d.v, 0) + coalesce(i.v, 0) - coalesce(e.v, 0),
     coalesce(d.v, 0), coalesce(i.v, 0), coalesce(e.v, 0)
   from club_settings s
-  left join lateral (select sum(amount) v from dues where status = 'pago') d on true
-  left join lateral (select sum(amount) v from cash_moves where kind = 'entrada') i on true
-  left join lateral (select sum(amount) v from cash_moves where kind = 'saida') e on true
+  left join lateral (select sum(amount) v from dues where status = 'pago'
+    and paid_at >= (s.cash_start::timestamp at time zone 'America/Sao_Paulo')) d on true
+  left join lateral (select sum(amount) v from cash_moves where kind = 'entrada' and date >= s.cash_start) i on true
+  left join lateral (select sum(amount) v from cash_moves where kind = 'saida' and date >= s.cash_start) e on true
   where s.id = 1 and can_manage_money()
 $$;
 
@@ -534,13 +540,18 @@ declare
   t0 timestamptz := (m0::timestamp at time zone 'America/Sao_Paulo');
   t1 timestamptz := (m1::timestamp at time zone 'America/Sao_Paulo');
   ob numeric;
+  cs date;
+  c0 timestamptz;
 begin
   if not can_manage_money() then raise exception 'Só presidente e tesoureiro'; end if;
-  select opening_balance into ob from club_settings where id = 1;
+  select opening_balance, cash_start into ob, cs from club_settings where id = 1;
+  -- Antes do app não há registro: o período começa, no mínimo, no dia em que o caixa entrou no app
+  if m0 < cs then m0 := cs; t0 := (cs::timestamp at time zone 'America/Sao_Paulo'); end if;
+  c0 := (cs::timestamp at time zone 'America/Sao_Paulo');
   opening := ob
-    + coalesce((select sum(amount) from dues where status = 'pago' and paid_at < t0), 0)
-    + coalesce((select sum(amount) from cash_moves where kind = 'entrada' and date < m0), 0)
-    - coalesce((select sum(amount) from cash_moves where kind = 'saida' and date < m0), 0);
+    + coalesce((select sum(amount) from dues where status = 'pago' and paid_at >= c0 and paid_at < t0), 0)
+    + coalesce((select sum(amount) from cash_moves where kind = 'entrada' and date >= cs and date < m0), 0)
+    - coalesce((select sum(amount) from cash_moves where kind = 'saida' and date >= cs and date < m0), 0);
   dues_in  := coalesce((select sum(amount) from dues where status = 'pago' and paid_at >= t0 and paid_at < t1), 0);
   income   := coalesce((select sum(amount) from cash_moves where kind = 'entrada' and date >= m0 and date < m1), 0);
   expenses := coalesce((select sum(amount) from cash_moves where kind = 'saida' and date >= m0 and date < m1), 0);
@@ -549,7 +560,7 @@ begin
     select jsonb_agg(jsonb_build_object('category', category, 'amount', total) order by total desc)
     from (select category, sum(amount) total from cash_moves where kind = 'saida' and date >= m0 and date < m1 group by category) c
   ), '[]'::jsonb);
-  select count(*) filter (where status = 'pago'), count(*) into paid_count, total_count from dues where month >= m0 and month < m1;
+  select count(*) filter (where status = 'pago'), count(*) into paid_count, total_count from dues where month >= date_trunc('month', m0)::date and month < m1;
   return next;
 end $$;
 
@@ -657,7 +668,8 @@ alter table event_rsvps      enable row level security;
 -- Configurações: membros leem tudo menos o código; presidente edita
 revoke all on club_settings from anon, authenticated;
 grant select (id, season, confirm_deadline, max_players, pts_win, pts_draw, pts_loss, pts_presence, pts_mvp,
-              fee_line, fee_goalkeeper, fee_away, due_day, reminder_day, pix_key, pix_name, pix_city, opening_balance)
+              fee_line, fee_goalkeeper, fee_away, due_day, reminder_day, pix_key, pix_name, pix_city, opening_balance,
+              cash_start, court_fee)
   on club_settings to authenticated;
 grant update on club_settings to authenticated;
 create policy cs_read   on club_settings for select using (is_member());

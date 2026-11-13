@@ -8,10 +8,10 @@ import { receiptUrl } from '../../lib/photos'
 import { AdminHeader, Avatar, Icon, todayISO, useToast } from '../../components/ui'
 import { DueTag, ReportCard } from '../Cash'
 
-type Tab = 'mensalidades' | 'lancamentos' | 'prestacao' | 'config'
+type Tab = 'atual' | 'mensalidades' | 'lancamentos' | 'prestacao' | 'config'
 
 export default function CashAdmin() {
-  const [tab, setTab] = useState<Tab>('mensalidades')
+  const [tab, setTab] = useState<Tab>('atual')
   const [settings, setSettings] = useState<Settings | null>(null)
   const [balance, setBalance] = useState<Balance | null>(null)
   const { toast, toastNode } = useToast()
@@ -30,16 +30,17 @@ export default function CashAdmin() {
     <main className="screen">
       <AdminHeader title="Caixa" right={balance ? <p style={{ margin: '0 0 6px', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: Number(balance.balance) < 0 ? 'var(--danger)' : 'var(--gold-text)' }}>{brl(balance.balance)}</p> : undefined} />
       <div className="row" role="tablist" style={{ overflowX: 'auto', paddingBottom: 2 }}>
-        {(['mensalidades', 'lancamentos', 'prestacao', 'config'] as Tab[]).map((t) => (
-          <button key={t} role="tab" aria-selected={tab === t} className={`chip ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>
-            {t === 'mensalidades' ? 'Mensalidades' : t === 'lancamentos' ? 'Lançamentos' : t === 'prestacao' ? 'Prestação' : 'Configurar'}
+        {(['atual', 'mensalidades', 'lancamentos', 'prestacao', 'config'] as Tab[]).map((t) => (
+          <button key={t} role="tab" aria-selected={tab === t} className={`chip ${tab === t ? 'on' : ''}`} style={{ flex: '0 0 auto' }} onClick={() => setTab(t)}>
+            {t === 'atual' ? 'Caixa atual' : t === 'mensalidades' ? 'Mensalidades' : t === 'lancamentos' ? 'Lançamentos' : t === 'prestacao' ? 'Prestação' : 'Configurar'}
           </button>
         ))}
       </div>
       <p className="caption muted" style={{ margin: 0 }}>Saldo e lançamentos ficam só com a diretoria. A galera vê a prestação de contas que você publicar.</p>
+      {tab === 'atual' && settings && balance && <CurrentTab settings={settings} balance={balance} />}
       {tab === 'mensalidades' && settings && <DuesTab settings={settings} toast={toast} onChange={loadTop} />}
       {tab === 'lancamentos' && <MovesTab toast={toast} onChange={loadTop} />}
-      {tab === 'prestacao' && <ReportTab toast={toast} />}
+      {tab === 'prestacao' && <ReportTab toast={toast} settings={settings} balance={balance} />}
       {tab === 'config' && settings && <ConfigTab settings={settings} toast={toast} onChange={loadTop} />}
       {toastNode}
     </main>
@@ -254,7 +255,7 @@ function ConfigTab({ settings, toast, onChange }: { settings: Settings; toast: (
     fee_line: String(settings.fee_line), fee_goalkeeper: String(settings.fee_goalkeeper), fee_away: String(settings.fee_away),
     due_day: String(settings.due_day), reminder_day: String(settings.reminder_day),
     pix_key: settings.pix_key ?? '', pix_name: settings.pix_name ?? '', pix_city: settings.pix_city ?? 'GASPAR',
-    opening_balance: String(settings.opening_balance),
+    opening_balance: String(settings.opening_balance), court_fee: String(settings.court_fee),
   })
   const num = (s: string) => Number(s.replace(',', '.')) || 0
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value })
@@ -265,7 +266,7 @@ function ConfigTab({ settings, toast, onChange }: { settings: Settings; toast: (
     const { error } = await supabase.from('club_settings').update({
       fee_line: num(f.fee_line), fee_goalkeeper: num(f.fee_goalkeeper), fee_away: num(f.fee_away),
       due_day: due, reminder_day: rem, pix_key: f.pix_key.trim() || null, pix_name: f.pix_name.trim() || null,
-      pix_city: f.pix_city.trim() || null, opening_balance: num(f.opening_balance),
+      pix_city: f.pix_city.trim() || null, opening_balance: num(f.opening_balance), court_fee: num(f.court_fee),
     }).eq('id', 1)
     if (error) return toast(errorText(error))
     toast('Configurações salvas'); onChange()
@@ -291,8 +292,11 @@ function ConfigTab({ settings, toast, onChange }: { settings: Settings; toast: (
         <div className="field"><label htmlFor="pn">Nome do recebedor</label><input id="pn" className="input" value={f.pix_name} onChange={set('pix_name')} /></div>
         <div className="field"><label htmlFor="pc">Cidade</label><input id="pc" className="input" value={f.pix_city} onChange={set('pix_city')} /></div>
       </div>
+      <h2 className="h-title" style={{ marginTop: 6 }}>Quadra</h2>
+      <div className="field"><label htmlFor="cf">Valor da quadra por jogo (R$)</label><input id="cf" className="input" inputMode="decimal" value={f.court_fee} onChange={set('court_fee')} /></div>
+      <p className="caption muted" style={{ margin: 0 }}>Usado na previsão do caixa.</p>
       <h2 className="h-title" style={{ marginTop: 6 }}>Saldo inicial</h2>
-      <div className="field"><label htmlFor="ob">Dinheiro em caixa antes do app (R$)</label><input id="ob" className="input" inputMode="decimal" value={f.opening_balance} onChange={set('opening_balance')} /></div>
+      <div className="field"><label htmlFor="ob">Dinheiro em caixa em {new Date(settings.cash_start + 'T12:00').toLocaleDateString('pt-BR')}, quando o caixa entrou no app (R$)</label><input id="ob" className="input" inputMode="decimal" value={f.opening_balance} onChange={set('opening_balance')} /></div>
       <button className="btn gold block" onClick={save}>Salvar configurações</button>
     </section>
   )
@@ -305,7 +309,7 @@ const KINDS: { key: Kind; label: string }[] = [
   { key: 's1', label: '1º semestre' }, { key: 's2', label: '2º semestre' }, { key: 'ano', label: 'Ano' }, { key: 'mes', label: 'Um mês' },
 ]
 
-function ReportTab({ toast }: { toast: (m: string) => void }) {
+function ReportTab({ toast, settings, balance }: { toast: (m: string) => void; settings: Settings | null; balance: Balance | null }) {
   // Padrão: o semestre atual
   const now = monthISO()
   const [kind, setKind] = useState<Kind>(Number(now.slice(5, 7)) <= 6 ? 's1' : 's2')
@@ -359,6 +363,10 @@ function ReportTab({ toast }: { toast: (m: string) => void }) {
       </section>
 
       {sum && <ReportCard report={{ ...sum, month: start, period_end: end }} preview />}
+      {settings && start < settings.cash_start && (
+        <p className="caption muted" style={{ margin: 0 }}>O caixa entrou no app em {new Date(settings.cash_start + 'T12:00').toLocaleDateString('pt-BR')}. Antes disso o histórico está na planilha, então a prévia começa nessa data.</p>
+      )}
+      {settings && balance && notOver && <Forecast settings={settings} balance={balance} />}
 
       <section className="card stack" style={{ gap: 12 }}>
         <div className="field">
@@ -369,5 +377,131 @@ function ReportTab({ toast }: { toast: (m: string) => void }) {
         <p className="caption muted" style={{ margin: 0 }}>A galera vê a prestação como está no momento da publicação. Se lançar algo depois, publique de novo para atualizar.</p>
       </section>
     </>
+  )
+}
+
+const fmtDate = (iso: string) => new Date(iso.slice(0, 10) + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+
+/** Saldo de agora e o que entrou e saiu desde que o caixa passou para o app. */
+function CurrentTab({ settings, balance }: { settings: Settings; balance: Balance }) {
+  type Line = { key: string; date: string; label: string; detail: string; amount: number }
+  const [lines, setLines] = useState<Line[] | null>(null)
+  useEffect(() => {
+    const since = settings.cash_start
+    Promise.all([
+      supabase.from('dues').select('*').eq('status', 'pago').gte('paid_at', since + 'T03:00:00Z'),
+      supabase.from('cash_moves').select('*').gte('date', since),
+      supabase.from('players').select('id,name'),
+    ]).then(([{ data: d }, { data: m }, { data: p }]) => {
+      const names = Object.fromEntries(((p as Player[]) ?? []).map((x) => [x.id, x.name]))
+      const out: Line[] = [
+        ...((d as Due[]) ?? []).map((x) => ({ key: 'd' + x.id, date: x.paid_at ?? x.month, label: `Mensalidade · ${names[x.player_id] ?? '?'}`, detail: monthName(x.month), amount: Number(x.amount) })),
+        ...((m as CashMove[]) ?? []).map((x) => ({ key: 'm' + x.id, date: x.date, label: x.category, detail: x.description ?? '', amount: x.kind === 'saida' ? -Number(x.amount) : Number(x.amount) })),
+      ].sort((a, b) => b.date.localeCompare(a.date))
+      setLines(out)
+    })
+  }, [settings.cash_start])
+
+  const neg = Number(balance.balance) < 0
+  return (
+    <>
+      <section className="card lg stripes stack" style={{ alignItems: 'center', textAlign: 'center', gap: 4, background: 'var(--brand-blue)' }}>
+        <p className="eyebrow" style={{ margin: 0, color: 'var(--ink)' }}>Dinheiro em caixa agora</p>
+        <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 48, lineHeight: '54px', color: neg ? 'var(--danger)' : 'var(--ink)' }}>{brl(balance.balance)}</p>
+        <p className="small" style={{ margin: 0 }}>Começou com {brl(settings.opening_balance)} em {fmtDate(settings.cash_start)}</p>
+        <div className="row" style={{ gap: 16, marginTop: 6 }}>
+          <span className="small">Entrou <strong style={{ color: 'var(--success)' }}>+{brl(Number(balance.dues_paid) + Number(balance.income))}</strong></span>
+          <span className="small">Saiu <strong style={{ color: 'var(--danger)' }}>−{brl(balance.expenses)}</strong></span>
+        </div>
+      </section>
+
+      <Forecast settings={settings} balance={balance} />
+
+      <section className="card stack" style={{ gap: 8 }}>
+        <h2 className="h-title">Movimentações</h2>
+        {lines === null && <p className="small muted" style={{ margin: 0 }}>Carregando…</p>}
+        {lines?.length === 0 && <p className="small muted" style={{ margin: 0 }}>Nada ainda. Mensalidades confirmadas e lançamentos aparecem aqui e atualizam o saldo.</p>}
+        {lines?.slice(0, 40).map((l) => (
+          <div key={l.key} className="row" style={{ gap: 10, minHeight: 36 }}>
+            <span className="caption muted" style={{ width: 40 }}>{fmtDate(l.date)}</span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span className="small" style={{ display: 'block', fontWeight: 500 }}>{l.label}</span>
+              {l.detail && <span className="caption muted" style={{ display: 'block' }}>{l.detail}</span>}
+            </span>
+            <span className="small" style={{ fontWeight: 700, color: l.amount < 0 ? 'var(--danger)' : 'var(--success)' }}>{l.amount < 0 ? '−' : '+'}{brl(Math.abs(l.amount))}</span>
+          </div>
+        ))}
+      </section>
+    </>
+  )
+}
+
+/** Quintas-feiras de amanhã até a data final (inclusive). */
+function thursdaysUntil(endISO: string) {
+  const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + 1)
+  const end = new Date(endISO + 'T12:00')
+  let n = 0
+  while (d <= end) { if (d.getDay() === 4) n++; d.setDate(d.getDate() + 1) }
+  return n
+}
+
+/** Previsão até o fim do semestre: saldo + o que falta receber − quadra. */
+function Forecast({ settings, balance }: { settings: Settings; balance: Balance }) {
+  const now = new Date()
+  const y = now.getFullYear()
+  const firstHalf = now.getMonth() < 6
+  const endISO = firstHalf ? `${y}-06-30` : `${y}-12-31`
+  const [open, setOpen] = useState<number | null>(null)
+  const [monthly, setMonthly] = useState<number | null>(null)
+  const [games, setGames] = useState(() => thursdaysUntil(endISO))
+
+  useEffect(() => {
+    Promise.all([
+      supabase.from('dues').select('amount,status,month').neq('status', 'pago'),
+      supabase.from('players').select('*').neq('approved', false),
+    ]).then(([{ data: d }, { data: p }]) => {
+      setOpen(((d as Due[]) ?? []).reduce((t, x) => t + Number(x.amount), 0))
+      const ps = ((p as Player[]) ?? []).filter((x) => !x.is_guest)
+      setMonthly(ps.reduce((t, x) => t + Number(x.status === 'afastado' ? settings.fee_away : x.is_goalkeeper ? settings.fee_goalkeeper : settings.fee_line), 0))
+    })
+  }, [settings])
+
+  // Meses que ainda vão abrir mensalidade até o fim do semestre (o mês atual já está em "a receber")
+  const lastMonth = firstHalf ? 6 : 12
+  const futureMonths = Math.max(0, lastMonth - (now.getMonth() + 1))
+  const toReceive = (open ?? 0) + futureMonths * (monthly ?? 0)
+  const court = games * Number(settings.court_fee)
+  const final = Number(balance.balance) + toReceive - court
+  const Line = ({ label, value, sign, strong }: { label: string; value: number; sign?: '+' | '−'; strong?: boolean }) => (
+    <div className="between small" style={{ fontWeight: strong ? 700 : 400 }}>
+      <span className={strong ? '' : 'muted'}>{label}</span>
+      <span style={{ color: sign === '+' ? 'var(--success)' : sign === '−' ? 'var(--danger)' : 'var(--ink)' }}>{sign ?? ''}{brl(value)}</span>
+    </div>
+  )
+  return (
+    <section className="card stack" style={{ gap: 8, border: '1px solid var(--gold)' }}>
+      <div className="between">
+        <h2 className="h-title">Previsão até {fmtDate(endISO)}</h2>
+        <span className="caption gold-text" style={{ fontWeight: 600 }}>{firstHalf ? '1º' : '2º'} semestre</span>
+      </div>
+      <Line label="Saldo agora" value={Number(balance.balance)} />
+      <Line label="Mensalidades em aberto" value={open ?? 0} sign="+" />
+      {futureMonths > 0 && <Line label={`Mensalidades de ${futureMonths} ${futureMonths === 1 ? 'mês' : 'meses'} a abrir (${brl(monthly ?? 0)}/mês)`} value={futureMonths * (monthly ?? 0)} sign="+" />}
+      <Line label={`Quadra: ${games} ${games === 1 ? 'jogo' : 'jogos'} × ${brl(settings.court_fee)}`} value={court} sign="−" />
+      <div style={{ height: 1, background: 'var(--border)' }} />
+      <div className="between" style={{ alignItems: 'baseline' }}>
+        <span style={{ fontWeight: 700 }}>Saldo previsto</span>
+        <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 26, color: final < 0 ? 'var(--danger)' : 'var(--gold-text)' }}>{brl(final)}</span>
+      </div>
+      <div className="between" style={{ gap: 8 }}>
+        <span className="caption muted" style={{ flex: 1 }}>Jogos até lá. Tire as quintas que não vai ter jogo (feriado, fim de ano).</span>
+        <div className="row" style={{ gap: 6 }}>
+          <button className="btn ghost sm" aria-label="Menos um jogo" style={{ width: 36, height: 36, padding: 0, borderRadius: 999 }} onClick={() => setGames(Math.max(0, games - 1))}>−</button>
+          <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 20, minWidth: 24, textAlign: 'center' }}>{games}</span>
+          <button className="btn ghost sm" aria-label="Mais um jogo" style={{ width: 36, height: 36, padding: 0, borderRadius: 999 }} onClick={() => setGames(games + 1)}>+</button>
+        </div>
+      </div>
+      <p className="caption muted" style={{ margin: 0 }}>Conta como se todo mundo pagasse. Se alguém atrasar, o saldo real fica abaixo disso.</p>
+    </section>
   )
 }
