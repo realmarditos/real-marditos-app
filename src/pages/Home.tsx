@@ -70,10 +70,13 @@ export default function Home() {
 
   useEffect(() => { load() }, [load])
 
-  async function rsvp(kind: Rsvp) {
+  const [asking, setAsking] = useState(false)
+
+  async function rsvp(kind: Rsvp, reason?: string) {
     if (!next) return
     setBusy(true)
-    const { error } = await supabase.rpc('set_rsvp', { p_match: next.id, p_rsvp: kind })
+    setAsking(false)
+    const { error } = await supabase.rpc('set_rsvp', { p_match: next.id, p_rsvp: kind, p_reason: reason ?? null })
     setBusy(false)
     if (error) return toast(errorText(error))
     toast(kind === 'vou' ? 'Presença confirmada!' : 'Beleza, fica pra próxima.')
@@ -135,14 +138,14 @@ export default function Home() {
                 <button className="btn gold pill" style={{ flex: 1 }} disabled={busy || mine?.rsvp === 'vou'} onClick={() => rsvp('vou')}>
                   {mine?.rsvp === 'vou' ? 'Confirmado' : 'Vou'}
                 </button>
-                <button className="btn ghost pill" style={{ flex: 1 }} disabled={busy || mine?.rsvp === 'nao_vou'} onClick={() => rsvp('nao_vou')}>
+                <button className="btn ghost pill" style={{ flex: 1 }} disabled={busy || mine?.rsvp === 'nao_vou'} onClick={() => setAsking(true)}>
                   Não vou
                 </button>
               </div>
               <p className="small muted" style={{ margin: 0 }}>
                 {myWaiting
                   ? 'Você está na lista de espera. Se abrir vaga, você entra.'
-                  : `Confirme até as ${hhmm(settings?.confirm_deadline ?? '14:00')}. Depois disso, a lista fecha quando os times forem postados.`}
+                  : `Confirme até as ${hhmm(settings?.confirm_deadline ?? '14:00')} de ${formatDate(next.date).toLowerCase()}, dia do jogo. Depois desse horário, as vagas que sobrarem abrem para convidados.`}
               </p>
             </>
           ) : (
@@ -152,6 +155,12 @@ export default function Home() {
           {waiting.length > 0 && next.status === 'aberta' && (
             <p className="small muted" style={{ margin: 0 }}>Lista de espera: {waiting.map((a) => a.players.name).join(', ')}</p>
           )}
+          {next.status === 'aberta' && att.some((a) => a.rsvp === 'nao_vou') && (
+            <p className="small muted" style={{ margin: 0 }}>
+              Não vão: {att.filter((a) => a.rsvp === 'nao_vou').map((a) => a.players.name + (a.reason ? ` (${a.reason})` : '')).join(', ')}
+            </p>
+          )}
+          {asking && <ReasonSheet busy={busy} onPick={(r) => rsvp('nao_vou', r)} onClose={() => setAsking(false)} />}
         </section>
       ) : (
         <section className="card lg stripes">
@@ -293,6 +302,33 @@ function TeamsPosted({ att, myId }: { att: AttWithPlayer[]; myId?: string }) {
             ))}
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+const REASONS = ['Trabalho', 'Faculdade', 'Lesionado', 'Doente', 'Viagem', 'Família', 'Compromisso']
+
+/** "Não vou": motivo opcional, com atalhos e campo livre. */
+function ReasonSheet({ busy, onPick, onClose }: { busy: boolean; onPick: (reason?: string) => void; onClose: () => void }) {
+  const [text, setText] = useState('')
+  return (
+    <div className="sheet-bg" onClick={onClose}>
+      <div className="sheet" role="dialog" aria-label="Motivo de não ir" onClick={(e) => e.stopPropagation()}>
+        <div>
+          <h2 className="h-l" style={{ fontSize: 24 }}>Vai desfalcar?</h2>
+          <p className="small muted" style={{ margin: '4px 0 0' }}>Conta o motivo pra galera, se quiser. É opcional.</p>
+        </div>
+        <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+          {REASONS.map((r) => <button key={r} type="button" className="chip" disabled={busy} onClick={() => onPick(r)}>{r}</button>)}
+        </div>
+        <div className="field">
+          <label htmlFor="why">Outro motivo</label>
+          <input id="why" className="input" maxLength={80} placeholder="Ex.: aniversário da sogra" value={text} onChange={(e) => setText(e.target.value)} />
+        </div>
+        <button className="btn gold block" disabled={busy || !text.trim()} onClick={() => onPick(text.trim())}>Avisar com esse motivo</button>
+        <button className="btn ghost block" disabled={busy} onClick={() => onPick()}>Prefiro não dizer</button>
+        <button className="btn ghost block sm" onClick={onClose}>Cancelar</button>
       </div>
     </div>
   )

@@ -7,7 +7,7 @@
 type Row = Record<string, any>
 type DB = Record<string, Row[]> & { _users: Row[] }
 
-const KEY = 'marditos-demo-v13'
+const KEY = 'marditos-demo-v14'
 export const DEMO_CODE = 'MARDITOS'
 const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4)
 
@@ -120,7 +120,7 @@ function seed(): DB {
   // Os pontos iniciais já incluem essas duas noites: desconta para o total bater com o ranking real
   const confirmados = ['Japa', 'Daniel', 'Kaique', 'Nadabe', 'Walison', 'Anderson', 'Censi', 'Itália', 'Pereira']
   confirmados.forEach((n, i) => att.push({ match_id: 'm-next', player_id: pid(n), rsvp: 'vou', rsvp_at: new Date(Date.now() - (20 - i) * 60000).toISOString(), team: null, is_reserve: false, played: false }))
-  att.push({ match_id: 'm-next', player_id: pid('Vini'), rsvp: 'nao_vou', rsvp_at: new Date().toISOString(), team: null, is_reserve: false, played: false })
+  att.push({ match_id: 'm-next', player_id: pid('Vini'), rsvp: 'nao_vou', rsvp_at: new Date().toISOString(), team: null, is_reserve: false, played: false, reason: 'Viagem' })
 
   const db: DB = {
     _users: users,
@@ -362,13 +362,14 @@ const rpcs: Record<string, (a: any) => any> = {
     Object.assign(p, { position: a.p_position, foot: a.p_foot, shirt_number: a.p_shirt_number, birthday: a.p_birthday, avatar: a.p_avatar ?? p.avatar }); save()
     return { data: null, error: null }
   },
-  set_rsvp: ({ p_match, p_rsvp }) => {
+  set_rsvp: ({ p_match, p_rsvp, p_reason }) => {
+    const why = p_rsvp === 'nao_vou' ? (String(p_reason ?? '').trim().slice(0, 80) || null) : null
     const p = me(); if (!p) return err('Faça login primeiro')
     const db = load()
     if (db.matches.find((m) => m.id === p_match)?.status !== 'aberta') return err('A lista já fechou: os times foram postados')
     const a = db.attendances.find((x) => x.match_id === p_match && x.player_id === p.id)
-    if (a) { if (a.rsvp !== p_rsvp) { a.rsvp = p_rsvp; a.rsvp_at = new Date().toISOString() } }
-    else db.attendances.push({ match_id: p_match, player_id: p.id, rsvp: p_rsvp, rsvp_at: new Date().toISOString(), team: null, is_reserve: false, played: false })
+    if (a) { a.reason = why; if (a.rsvp !== p_rsvp) { a.rsvp = p_rsvp; a.rsvp_at = new Date().toISOString() } }
+    else db.attendances.push({ match_id: p_match, player_id: p.id, rsvp: p_rsvp, rsvp_at: new Date().toISOString(), team: null, is_reserve: false, played: false, reason: why })
     save(); return { data: null, error: null }
   },
   ranking: () => ({ data: rankingRows(load()), error: null }),

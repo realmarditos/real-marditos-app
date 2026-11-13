@@ -110,6 +110,7 @@ create table attendances (
   team       team_color,
   is_reserve boolean not null default false,
   played     boolean not null default false,
+  reason     text,  -- motivo de quem não vai (opcional)
   primary key (match_id, player_id)
 );
 
@@ -412,18 +413,20 @@ create trigger players_guard_role before update on players
 
 -- ---------- Presença ----------
 -- O membro confirma ou desconfirma enquanto a lista está aberta (até os times serem postados).
-create or replace function set_rsvp(p_match uuid, p_rsvp rsvp_kind) returns void
+create or replace function set_rsvp(p_match uuid, p_rsvp rsvp_kind, p_reason text default null) returns void
 language plpgsql security definer set search_path = public as $$
-declare pid uuid := my_player_id();
+declare
+  pid uuid := my_player_id();
+  why text := case when p_rsvp = 'nao_vou' then nullif(trim(left(coalesce(p_reason, ''), 80)), '') end;
 begin
   if pid is null then raise exception 'Faça login primeiro'; end if;
   if (select status from matches where id = p_match) is distinct from 'aberta' then
     raise exception 'A lista já fechou: os times foram postados';
   end if;
-  insert into attendances (match_id, player_id, rsvp, rsvp_at)
-  values (p_match, pid, p_rsvp, now())
+  insert into attendances (match_id, player_id, rsvp, rsvp_at, reason)
+  values (p_match, pid, p_rsvp, now(), why)
   on conflict (match_id, player_id)
-  do update set rsvp = excluded.rsvp,
+  do update set rsvp = excluded.rsvp, reason = excluded.reason,
                 rsvp_at = case when attendances.rsvp = excluded.rsvp then attendances.rsvp_at else now() end;
 end $$;
 

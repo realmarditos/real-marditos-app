@@ -140,6 +140,17 @@ export default function Game() {
             {waiting.map((a) => <PersonRow key={a.player_id} p={byId[a.player_id]} r={ratings[a.player_id]} action="Tirar" onAction={() => setRsvp(a.player_id, 'nao_vou')} />)}
           </section>
 
+          {notGoingMembers.length > 0 && (
+            <section className="card stack" style={{ gap: 6 }}>
+              <h2 className="h-title">Não vão · {notGoingMembers.length}</h2>
+              {notGoingMembers.map((a) => (
+                <p key={a.player_id} className="small" style={{ margin: 0 }}>
+                  <strong>{byId[a.player_id]?.name ?? '?'}</strong>{' '}<span className="muted">{a.reason ?? 'sem motivo'}</span>
+                </p>
+              ))}
+            </section>
+          )}
+
           {(noAnswer.length > 0 || notGoingMembers.length > 0) && (
             <details className="card">
               <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Adicionar membro na lista · {noAnswer.length} sem resposta, {notGoingMembers.length} não vão</summary>

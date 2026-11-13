@@ -54,6 +54,8 @@ export type Attendance = {
   team: Team | null
   is_reserve: boolean
   played: boolean
+  /** Motivo de quem não vai (opcional) */
+  reason?: string | null
 }
 
 export type RankingRow = {
