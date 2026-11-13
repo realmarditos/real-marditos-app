@@ -121,7 +121,7 @@ export default function PlayerCard() {
                 </div>
               ))}
             </div>
-            <p style={{ margin: '12px 0 0', fontSize: 10, fontWeight: 600, letterSpacing: '.12em', opacity: 0.8 }}>REAL MARDITOS FC · {season}</p>
+            <p style={{ margin: '12px 0 0', fontSize: 10, fontWeight: 600, letterSpacing: '.12em', opacity: 0.8 }}>REAL MARDITOS FC · {season}{p.role && p.role !== 'membro' ? ` · ${p.role.toUpperCase()}` : ''}</p>
           </div>
         </div>
       </div>

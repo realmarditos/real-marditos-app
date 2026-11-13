@@ -102,7 +102,9 @@ export type Settings = {
 export const SETTINGS_COLS = 'season,confirm_deadline,max_players,pts_win,pts_draw,pts_loss,pts_presence,pts_mvp,fee_line,fee_goalkeeper,fee_away,due_day,reminder_day,pix_key,pix_name,pix_city,opening_balance,cash_start,court_fee'
 
 export const isAdminRole = (r?: Role | null) => r === 'presidente' || r === 'tesoureiro' || r === 'organizador'
-export const canManageGame = (r?: Role | null) => r === 'presidente' || r === 'organizador'
+export const canManageGame = (r?: Role | null) => r === 'presidente' || r === 'organizador' || r === 'tesoureiro'
+/** Configurações do clube (valores, Pix, quadra): só o presidente */
+export const canEditSettings = (r?: Role | null) => r === 'presidente'
 
 export const ROLE_LABEL: Record<Role, string> = {
   membro: 'Membro',

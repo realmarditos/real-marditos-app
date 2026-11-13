@@ -41,7 +41,7 @@ function GameOnly({ children }: { children: React.ReactNode }) {
 
 function MoneyOnly({ children }: { children: React.ReactNode }) {
   const { player } = useAuth()
-  return canManageMoney(player?.role) ? <>{children}</> : <Navigate to="/adm/avisos" replace />
+  return isAdminRole(player?.role) ? <>{children}</> : <Navigate to="/adm/avisos" replace />
 }
 
 export default function App() {

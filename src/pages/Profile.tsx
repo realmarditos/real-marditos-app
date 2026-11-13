@@ -5,8 +5,7 @@ import PinInput from '../components/PinInput'
 import { useAuth } from '../lib/auth'
 import type { RankingRow } from '../lib/types'
 import { POSITIONS } from '../lib/types'
-import { ROLE_LABEL } from '../lib/types'
-import { Avatar, Icon, useToast } from '../components/ui'
+import { Avatar, Icon, RoleTag, useToast } from '../components/ui'
 import { Badges, Rivalries } from '../components/Achievements'
 import { IMG } from '../lib/assets'
 
@@ -47,7 +46,7 @@ export default function Profile() {
           <p className="small" style={{ margin: 0 }}>{details || 'Complete seu perfil'}</p>
           <div className="row" style={{ gap: 6, marginTop: 4 }}>
             {rank && <span className="tag gold">{rank.pos}º no ranking</span>}
-            {player.role !== 'membro' && <span className="tag soft">{ROLE_LABEL[player.role]}</span>}
+            <RoleTag role={player.role} full />
           </div>
         </div>
         <img src={IMG.medalhao} alt="" aria-hidden="true" style={{ position: 'absolute', right: -24, bottom: -28, width: 120, opacity: 0.15 }} />

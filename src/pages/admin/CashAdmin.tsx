@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase, errorText } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import type { Balance, CashMove, CashReport, Due, Player, Settings } from '../../lib/types'
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, SETTINGS_COLS, isLate, monthISO, monthName, shiftMonth, periodLabel } from '../../lib/types'
+import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, SETTINGS_COLS, isLate, monthISO, monthName, shiftMonth, periodLabel, canManageMoney, canEditSettings } from '../../lib/types'
 import { brl } from '../../lib/pix'
 import { receiptUrl } from '../../lib/photos'
 import { AdminHeader, Avatar, Icon, todayISO, useToast } from '../../components/ui'
@@ -11,6 +11,9 @@ import { DueTag, ReportCard } from '../Cash'
 type Tab = 'atual' | 'mensalidades' | 'lancamentos' | 'prestacao' | 'config'
 
 export default function CashAdmin() {
+  const { player: me } = useAuth()
+  const ro = !canManageMoney(me?.role) // organizador: só vê
+  const tabs: Tab[] = ['atual', 'mensalidades', 'lancamentos', 'prestacao', ...(canEditSettings(me?.role) ? ['config' as Tab] : [])]
   const [tab, setTab] = useState<Tab>('atual')
   const [settings, setSettings] = useState<Settings | null>(null)
   const [balance, setBalance] = useState<Balance | null>(null)
@@ -30,24 +33,26 @@ export default function CashAdmin() {
     <main className="screen">
       <AdminHeader title="Caixa" right={balance ? <p style={{ margin: '0 0 6px', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: Number(balance.balance) < 0 ? 'var(--danger)' : 'var(--gold-text)' }}>{brl(balance.balance)}</p> : undefined} />
       <div className="row" role="tablist" style={{ overflowX: 'auto', paddingBottom: 2 }}>
-        {(['atual', 'mensalidades', 'lancamentos', 'prestacao', 'config'] as Tab[]).map((t) => (
+        {tabs.map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} className={`chip ${tab === t ? 'on' : ''}`} style={{ flex: '0 0 auto' }} onClick={() => setTab(t)}>
             {t === 'atual' ? 'Caixa atual' : t === 'mensalidades' ? 'Mensalidades' : t === 'lancamentos' ? 'Lançamentos' : t === 'prestacao' ? 'Prestação' : 'Configurar'}
           </button>
         ))}
       </div>
-      <p className="caption muted" style={{ margin: 0 }}>Saldo e lançamentos ficam só com a diretoria. A galera vê a prestação de contas que você publicar.</p>
+      <p className="caption muted" style={{ margin: 0 }}>
+        {ro ? 'Você vê o caixa, mas quem edita são o presidente e o tesoureiro.' : 'Saldo e lançamentos ficam só com a diretoria. A galera vê a prestação de contas que você publicar.'}
+      </p>
       {tab === 'atual' && settings && balance && <CurrentTab settings={settings} balance={balance} />}
-      {tab === 'mensalidades' && settings && <DuesTab settings={settings} toast={toast} onChange={loadTop} />}
-      {tab === 'lancamentos' && <MovesTab toast={toast} onChange={loadTop} />}
-      {tab === 'prestacao' && <ReportTab toast={toast} settings={settings} balance={balance} />}
-      {tab === 'config' && settings && <ConfigTab settings={settings} toast={toast} onChange={loadTop} />}
+      {tab === 'mensalidades' && settings && <DuesTab settings={settings} toast={toast} onChange={loadTop} ro={ro} />}
+      {tab === 'lancamentos' && <MovesTab toast={toast} onChange={loadTop} ro={ro} />}
+      {tab === 'prestacao' && <ReportTab toast={toast} settings={settings} balance={balance} ro={ro} />}
+      {tab === 'config' && settings && canEditSettings(me?.role) && <ConfigTab settings={settings} toast={toast} onChange={loadTop} />}
       {toastNode}
     </main>
   )
 }
 
-function DuesTab({ settings, toast, onChange }: { settings: Settings; toast: (m: string) => void; onChange: () => void }) {
+function DuesTab({ settings, toast, onChange, ro }: { settings: Settings; toast: (m: string) => void; onChange: () => void; ro: boolean }) {
   const { player: me } = useAuth()
   const [month, setMonth] = useState(monthISO())
   const [dues, setDues] = useState<Due[]>([])
@@ -120,7 +125,7 @@ function DuesTab({ settings, toast, onChange }: { settings: Settings; toast: (m:
         })}
       </div>
 
-      {open && <DueSheet due={open} player={players[open.player_id]} dueDay={settings.due_day} onClose={() => setOpen(null)} onStatus={setStatus}
+      {open && <DueSheet ro={ro} due={open} player={players[open.player_id]} dueDay={settings.due_day} onClose={() => setOpen(null)} onStatus={setStatus}
         onAmount={async (v) => {
           const { error } = await supabase.from('dues').update({ amount: v }).eq('id', open.id)
           if (error) return toast(errorText(error))
@@ -130,8 +135,8 @@ function DuesTab({ settings, toast, onChange }: { settings: Settings; toast: (m:
   )
 }
 
-function DueSheet({ due, player, dueDay, onClose, onStatus, onAmount }: {
-  due: Due; player?: Player; dueDay: number; onClose: () => void
+function DueSheet({ due, player, dueDay, onClose, onStatus, onAmount, ro }: {
+  due: Due; player?: Player; dueDay: number; onClose: () => void; ro: boolean
   onStatus: (d: Due, s: Due['status']) => void; onAmount: (v: number) => void
 }) {
   const [amount, setAmount] = useState(String(due.amount))
@@ -152,6 +157,7 @@ function DueSheet({ due, player, dueDay, onClose, onStatus, onAmount }: {
         {receipt && (isPdf
           ? <a className="btn ghost block sm" href={receipt} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>Abrir comprovante (PDF)</a>
           : <img src={receipt} alt="Comprovante" style={{ width: '100%', borderRadius: 12, maxHeight: 360, objectFit: 'contain', background: 'var(--bg)' }} />)}
+        {ro ? <p className="small" style={{ margin: 0 }}>Valor: <strong>{brl(due.amount)}</strong></p> : <>
         <div className="field">
           <label htmlFor="amt">Valor da mensalidade (R$)</label>
           <div className="row">
@@ -165,13 +171,14 @@ function DueSheet({ due, player, dueDay, onClose, onStatus, onAmount }: {
           <button className="btn ghost block sm" onClick={() => onStatus(due, 'pendente')}>Desfazer pagamento</button>
         )}
         {due.status === 'informado' && <button className="btn ghost block sm" onClick={() => onStatus(due, 'pendente')}>Não recebi, voltar para pendente</button>}
+        </>}
         <button className="btn ghost block sm" onClick={onClose}>Fechar</button>
       </div>
     </div>
   )
 }
 
-function MovesTab({ toast, onChange }: { toast: (m: string) => void; onChange: () => void }) {
+function MovesTab({ toast, onChange, ro }: { toast: (m: string) => void; onChange: () => void; ro: boolean }) {
   const { player } = useAuth()
   const [moves, setMoves] = useState<CashMove[]>([])
   const [kind, setKind] = useState<'saida' | 'entrada'>('saida')
@@ -204,7 +211,7 @@ function MovesTab({ toast, onChange }: { toast: (m: string) => void; onChange: (
   const cats = kind === 'saida' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES
   return (
     <>
-      <section className="card stack" style={{ gap: 12 }}>
+      {!ro && <section className="card stack" style={{ gap: 12 }}>
         <div className="row">
           <button className={`chip ${kind === 'saida' ? 'on' : ''}`} onClick={() => { setKind('saida'); setCategory(EXPENSE_CATEGORIES[0]) }}>Gasto</button>
           <button className={`chip ${kind === 'entrada' ? 'on' : ''}`} onClick={() => { setKind('entrada'); setCategory(INCOME_CATEGORIES[0]) }}>Entrada extra</button>
@@ -233,7 +240,8 @@ function MovesTab({ toast, onChange }: { toast: (m: string) => void; onChange: (
         </div>
         <button className="btn gold block" onClick={add}>{kind === 'saida' ? 'Lançar gasto' : 'Lançar entrada'}</button>
         <p className="caption muted" style={{ margin: 0 }}>Mensalidades entram sozinhas quando você confirma o pagamento.</p>
-      </section>
+      </section>}
+      {moves.length === 0 && ro && <p className="small muted" style={{ margin: 0 }}>Nenhum lançamento ainda.</p>}
       <div className="stack" style={{ gap: 6 }}>
         {moves.map((m) => (
           <div key={m.id} className="list-row">
@@ -242,7 +250,7 @@ function MovesTab({ toast, onChange }: { toast: (m: string) => void; onChange: (
               <span className="caption muted">{new Date(m.date + 'T12:00').toLocaleDateString('pt-BR')}</span>
             </span>
             <span style={{ fontWeight: 600, color: m.kind === 'entrada' ? 'var(--success)' : 'var(--ink)' }}>{m.kind === 'entrada' ? '+' : '−'}{brl(m.amount)}</span>
-            <button className="btn ghost sm" aria-label={`Apagar ${m.category}`} style={{ height: 32, width: 32, padding: 0 }} onClick={() => remove(m)}>×</button>
+            {!ro && <button className="btn ghost sm" aria-label={`Apagar ${m.category}`} style={{ height: 32, width: 32, padding: 0 }} onClick={() => remove(m)}>×</button>}
           </div>
         ))}
       </div>
@@ -309,7 +317,7 @@ const KINDS: { key: Kind; label: string }[] = [
   { key: 's1', label: '1º semestre' }, { key: 's2', label: '2º semestre' }, { key: 'ano', label: 'Ano' }, { key: 'mes', label: 'Um mês' },
 ]
 
-function ReportTab({ toast, settings, balance }: { toast: (m: string) => void; settings: Settings | null; balance: Balance | null }) {
+function ReportTab({ toast, settings, balance, ro }: { toast: (m: string) => void; settings: Settings | null; balance: Balance | null; ro: boolean }) {
   // Padrão: o semestre atual
   const now = monthISO()
   const [kind, setKind] = useState<Kind>(Number(now.slice(5, 7)) <= 6 ? 's1' : 's2')
@@ -368,14 +376,14 @@ function ReportTab({ toast, settings, balance }: { toast: (m: string) => void; s
       )}
       {settings && balance && notOver && <Forecast settings={settings} balance={balance} />}
 
-      <section className="card stack" style={{ gap: 12 }}>
+      {!ro && <section className="card stack" style={{ gap: 12 }}>
         <div className="field">
           <label htmlFor="nt">Recado da diretoria (opcional)</label>
           <textarea id="nt" className="input" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Ex.: compramos bola nova; quadra paga até dezembro" />
         </div>
         <button className="btn gold block" disabled={busy || !sum} onClick={publish}>{published ? 'Atualizar prestação publicada' : 'Publicar para a galera'}</button>
         <p className="caption muted" style={{ margin: 0 }}>A galera vê a prestação como está no momento da publicação. Se lançar algo depois, publique de novo para atualizar.</p>
-      </section>
+      </section>}
     </>
   )
 }

@@ -254,10 +254,10 @@ language sql stable security definer set search_path = public as $$
   select coalesce(my_role() in ('presidente', 'tesoureiro', 'organizador'), false)
 $$;
 
--- Presidente ou organizador: membros, notas, sorteio, súmula
+-- Presidente, organizador ou tesoureiro: membros, notas, sorteio, súmula
 create or replace function can_manage_game() returns boolean
 language sql stable security definer set search_path = public as $$
-  select coalesce(my_role() in ('presidente', 'organizador'), false)
+  select coalesce(my_role() in ('presidente', 'organizador', 'tesoureiro'), false)
 $$;
 
 -- Presidente ou tesoureiro: dinheiro
@@ -529,7 +529,7 @@ language sql stable security definer set search_path = public as $$
     and paid_at >= (s.cash_start::timestamp at time zone 'America/Sao_Paulo')) d on true
   left join lateral (select sum(amount) v from cash_moves where kind = 'entrada' and date >= s.cash_start) i on true
   left join lateral (select sum(amount) v from cash_moves where kind = 'saida' and date >= s.cash_start) e on true
-  where s.id = 1 and can_manage_money()
+  where s.id = 1 and is_admin()  -- toda a diretoria vê o saldo
 $$;
 
 -- Resumo de um período, do mês p_month até o mês p_end (regime de caixa: mensalidade conta quando foi confirmada)
@@ -546,7 +546,7 @@ declare
   cs date;
   c0 timestamptz;
 begin
-  if not can_manage_money() then raise exception 'Só presidente e tesoureiro'; end if;
+  if not is_admin() then raise exception 'Só a diretoria'; end if;
   select opening_balance, cash_start into ob, cs from club_settings where id = 1;
   -- Antes do app não há registro: o período começa, no mínimo, no dia em que o caixa entrou no app
   if m0 < cs then m0 := cs; t0 := (cs::timestamp at time zone 'America/Sao_Paulo'); end if;
@@ -676,7 +676,8 @@ grant select (id, season, confirm_deadline, max_players, pts_win, pts_draw, pts_
   on club_settings to authenticated;
 grant update on club_settings to authenticated;
 create policy cs_read   on club_settings for select using (is_member());
-create policy cs_update on club_settings for update using (can_manage_money());
+-- Só o presidente muda as configurações
+create policy cs_update on club_settings for update using (my_role() = 'presidente');
 -- Só o presidente troca o código do clube
 revoke update on club_settings from authenticated;
 grant update (fee_line, fee_goalkeeper, fee_away, due_day, reminder_day, pix_key, pix_name, pix_city, opening_balance) on club_settings to authenticated;
@@ -717,7 +718,7 @@ create policy du_read  on dues       for select using (is_member());
 create policy du_write on dues       for all    using (can_manage_money()) with check (can_manage_money());
 create policy cr_read  on cash_reports for select using (is_member());
 create policy cr_write on cash_reports for all  using (can_manage_money()) with check (can_manage_money());
-create policy cm_read  on cash_moves for select using (can_manage_money());
+create policy cm_read  on cash_moves for select using (is_admin());
 create policy cm_write on cash_moves for all    using (can_manage_money()) with check (can_manage_money());
 
 -- Feed: todos leem; cada um escreve e apaga o que é seu; a diretoria apaga qualquer comentário
@@ -760,4 +761,4 @@ on conflict (id) do nothing;
 create policy comp_insert on storage.objects for insert to authenticated
   with check (bucket_id = 'comprovantes' and (storage.foldername(name))[1] = public.my_player_id()::text);
 create policy comp_read on storage.objects for select to authenticated
-  using (bucket_id = 'comprovantes' and (public.can_manage_money() or (storage.foldername(name))[1] = public.my_player_id()::text));
+  using (bucket_id = 'comprovantes' and (public.is_admin() or (storage.foldername(name))[1] = public.my_player_id()::text));

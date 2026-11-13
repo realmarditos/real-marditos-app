@@ -5,11 +5,11 @@ import type { Attendance, Match, Player, VoteWinner } from '../lib/types'
 import { TEAM_LABEL, votingOpen, canManageGame } from '../lib/types'
 import { useAuth } from '../lib/auth'
 import { errorText } from '../lib/supabase'
-import { formatDate } from '../components/ui'
+import { formatDate, RoleTag } from '../components/ui'
 import { IMG } from '../lib/assets'
 import MatchFeed from '../components/MatchFeed'
 
-type AttP = Attendance & { players: Pick<Player, 'name' | 'is_goalkeeper' | 'is_guest'> }
+type AttP = Attendance & { players: Pick<Player, 'name' | 'is_goalkeeper' | 'is_guest'> & { role?: string | null } }
 
 function winnerTeam(m: Match) {
   if (m.score_preto == null || m.score_branco == null || m.score_preto === m.score_branco) return null
@@ -54,7 +54,7 @@ export default function Matches() {
   async function toggle(id: string) {
     setOpen((o) => (o === id ? null : id))
     if (!lineups[id]) {
-      const { data } = await supabase.from('attendances').select('*, players(name,is_goalkeeper,is_guest)').eq('match_id', id).not('team', 'is', null)
+      const { data } = await supabase.from('attendances').select('*, players(name,is_goalkeeper,is_guest,role)').eq('match_id', id).not('team', 'is', null)
       setLineups((l) => ({ ...l, [id]: (data as AttP[]) ?? [] }))
     }
   }
@@ -124,7 +124,7 @@ export default function Matches() {
                           </p>
                           {lu.filter((a) => a.team === t).map((a) => (
                             <p key={a.player_id} className="small" style={{ margin: 0, lineHeight: '22px', color: a.played ? 'var(--ink)' : 'var(--ink-muted)' }}>
-                              {a.players.name}{a.players.is_goalkeeper ? ' · GOL' : ''}{a.players.is_guest ? ' · convidado' : ''}
+                              {a.players.name} <RoleTag role={a.players.role} />{a.players.is_goalkeeper ? ' · GOL' : ''}{a.players.is_guest ? ' · convidado' : ''}
                             </p>
                           ))}
                         </div>

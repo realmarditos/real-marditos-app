@@ -328,7 +328,7 @@ const rpcs: Record<string, (a: any) => any> = {
     return { data: null, error: null }
   },
   set_match_award: ({ p_match, p_kind, p_players }) => {
-    const r = me()?.role; if (r !== 'presidente' && r !== 'organizador') return err('Só presidente e organizador definem MVP e bagre')
+    if (!['presidente', 'organizador', 'tesoureiro'].includes(String(me()?.role))) return err('Só a diretoria define MVP e bagre')
     const db = load(); db.match_awards = (db.match_awards ?? []).filter((a: Row) => !(a.match_id === p_match && a.kind === p_kind))
     for (const player_id of p_players ?? []) db.match_awards.push({ match_id: p_match, kind: p_kind, player_id })
     save(); return { data: null, error: null }
@@ -346,12 +346,12 @@ const rpcs: Record<string, (a: any) => any> = {
     return { data: Object.values(by).sort((a, b) => b.total - a.total || a.name.localeCompare(b.name)), error: null }
   },
   approve_member: ({ pid }) => {
-    const r = me()?.role; if (r !== 'presidente' && r !== 'organizador') return err('Só presidente e organizador aprovam membros')
+    if (!['presidente', 'organizador', 'tesoureiro'].includes(String(me()?.role))) return err('Só a diretoria aprova membros')
     const p = load().players.find((x) => x.id === pid); if (p) { p.approved = true; save() }
     return { data: null, error: null }
   },
   reject_member: ({ pid }) => {
-    const r = me()?.role; if (r !== 'presidente' && r !== 'organizador') return err('Só presidente e organizador recusam membros')
+    if (!['presidente', 'organizador', 'tesoureiro'].includes(String(me()?.role))) return err('Só a diretoria recusa membros')
     const db = load(); const p = db.players.find((x) => x.id === pid)
     if (!p || p.approved !== false) return err('Esse membro já foi aprovado')
     if (p.self_created) db.players.splice(db.players.indexOf(p), 1); else { p.user_id = null; p.approved = true }
@@ -393,7 +393,7 @@ const rpcs: Record<string, (a: any) => any> = {
     u.password = `rm-${p_pin}-marditos`; save(); return { data: null, error: null }
   },
   month_cash_summary: ({ p_month, p_end }) => {
-    const role = me()?.role; if (role !== 'presidente' && role !== 'tesoureiro') return err('Só presidente e tesoureiro')
+    if (!['presidente', 'organizador', 'tesoureiro'].includes(String(me()?.role))) return err('Só a diretoria')
     return { data: [monthSummary(load(), String(p_month), p_end ? String(p_end) : null)], error: null }
   },
   publish_cash_report: ({ p_month, p_notes, p_end }) => {
@@ -427,7 +427,7 @@ const rpcs: Record<string, (a: any) => any> = {
     return { data: null, error: null }
   },
   cash_balance: () => {
-    const role = me()?.role; if (role !== 'presidente' && role !== 'tesoureiro') return { data: [], error: null }
+    if (!['presidente', 'organizador', 'tesoureiro'].includes(String(me()?.role))) return { data: [], error: null }
     const db = load(); const s = db.club_settings[0]
     const dues_paid = db.dues.filter((d) => d.status === 'pago').reduce((t, d) => t + Number(d.amount), 0)
     const income = db.cash_moves.filter((c) => c.kind === 'entrada').reduce((t, c) => t + Number(c.amount), 0)
@@ -486,11 +486,11 @@ class Query implements PromiseLike<any> {
 
   private canWrite(): string | null {
     const role = me()?.role
-    const game = role === 'presidente' || role === 'organizador'
-    const admin = game || role === 'tesoureiro'
+    const game = role === 'presidente' || role === 'organizador' || role === 'tesoureiro'
+    const admin = game
     if (this.table === 'announcements') return admin ? null : 'Sem permissão'
     const money = role === 'presidente' || role === 'tesoureiro'
-    if (this.table === 'club_settings') return money ? null : 'Sem permissão'
+    if (this.table === 'club_settings') return role === 'presidente' ? null : 'Sem permissão'
     if (this.table === 'dues' || this.table === 'cash_moves' || this.table === 'cash_reports') return money ? null : 'new row violates row-level security policy'
     if (this.table === 'votes') return 'new row violates row-level security policy'
     if (this.table === 'events') return admin ? null : 'new row violates row-level security policy'
@@ -515,10 +515,10 @@ class Query implements PromiseLike<any> {
       const isMember = !!me()
       if (!isMember) return { data: this.sm ? null : [], error: null }
       if (this.table === 'cash_moves') {
-        const r = me()?.role; if (r !== 'presidente' && r !== 'tesoureiro') return { data: [], error: null }
+        if (!['presidente', 'organizador', 'tesoureiro'].includes(String(me()?.role))) return { data: [], error: null }
       }
       if (this.table === 'player_ratings' || this.table === 'draw_separations') {
-        const r = me()?.role; if (r !== 'presidente' && r !== 'organizador') return { data: [], error: null }
+        if (!['presidente', 'organizador', 'tesoureiro'].includes(String(me()?.role))) return { data: [], error: null }
       }
       let out = rows.filter((r) => this.filters.every((f) => f(r)))
       if (this.orderBy) {

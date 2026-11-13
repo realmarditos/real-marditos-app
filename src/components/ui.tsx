@@ -67,7 +67,8 @@ export function AdminTabBar({ canGame, canMoney }: { canGame: boolean; canMoney:
       { to: '/adm/jogo', icon: 'shuffle' as IconName, label: 'Jogo' },
       { to: '/adm/sumula', icon: 'clipboard' as IconName, label: 'Súmula' },
     ] : []),
-    ...(canMoney ? [{ to: '/adm/caixa', icon: 'wallet' as IconName, label: 'Caixa' }] : []),
+    // Toda a diretoria vê o caixa; só presidente e tesoureiro editam
+    ...(canMoney || canGame ? [{ to: '/adm/caixa', icon: 'wallet' as IconName, label: 'Caixa' }] : []),
     { to: '/adm/avisos', icon: 'megaphone', label: 'Avisos' },
   ]
   return (
@@ -130,4 +131,21 @@ export function nextThursdayISO() {
   const add = (4 - d.getDay() + 7) % 7
   d.setDate(d.getDate() + add)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+const ROLE_SHORT: Record<string, string> = { presidente: 'PRES', tesoureiro: 'TES', organizador: 'ORG' }
+const ROLE_FULL: Record<string, string> = { presidente: 'Presidente', tesoureiro: 'Tesoureiro', organizador: 'Organizador' }
+
+/** Etiqueta da diretoria ao lado do nome (some para membro comum). */
+export function RoleTag({ role, full = false }: { role?: string | null; full?: boolean }) {
+  if (!role || !ROLE_SHORT[role]) return null
+  return (
+    <span title={`Diretoria · ${ROLE_FULL[role]}`} style={{
+      display: 'inline-flex', alignItems: 'center', gap: 3, flex: '0 0 auto', padding: full ? '1px 6px' : '0 4px', borderRadius: 999,
+      background: full ? 'var(--brand-navy)' : 'rgba(240,160,51,.16)', color: 'var(--gold)', border: '1px solid rgba(240,160,51,.5)',
+      fontSize: 10, lineHeight: '14px', fontWeight: 700, letterSpacing: '.06em', verticalAlign: 'middle',
+    }}>
+      {full ? `★ ${ROLE_FULL[role].toUpperCase()}` : ROLE_SHORT[role]}
+    </span>
+  )
 }
