@@ -101,5 +101,8 @@ textarea.input { height: auto; min-height: 96px; padding: 12px var(--space-4); f
 .bar > span { display: block; height: 100%; background: var(--brand-blue-bright); border-radius: var(--radius-full); }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabbar-h) + 24px); background: var(--ink); color: var(--brand-navy); padding: 10px 16px; border-radius: var(--radius-md); font-weight: 600; font-size: 14px; z-index: 50; }
 .center-page { min-height: 100dvh; display: flex; align-items: center; justify-content: center; }
-.sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 40; display: flex; align-items: flex-end; justify-content: center; }
-.sheet { width: 100%; max-width: 480px; max-height: 90dvh; overflow: auto; background: var(--surface); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: var(--space-4) var(--space-4) calc(env(safe-area-inset-bottom) + 24px); display: flex; flex-direction: column; gap: var(--space-4); }
+.sheet-bg { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 40; display: flex; align-items: flex-end; justify-content: center; overscroll-behavior: contain; touch-action: none; }
+/* Com uma janela aberta, a tela de trás não rola (no iPhone a rolagem "vazava" para baixo) */
+html:has(.sheet-bg), body:has(.sheet-bg) { overflow: hidden; overscroll-behavior: none; }
+.sheet { width: 100%; max-width: 480px; max-height: 90vh; max-height: 90dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; background: var(--surface); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: var(--space-4) var(--space-4) calc(env(safe-area-inset-bottom) + 24px); display: flex; flex-direction: column; gap: var(--space-4); }
+.sheet > * { flex-shrink: 0; }
