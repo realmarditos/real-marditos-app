@@ -44,7 +44,7 @@ export function TabBar() {
     { to: '/', icon: 'home', label: 'Início' },
     { to: '/ranking', icon: 'ranking', label: 'Ranking' },
     { to: '/partidas', icon: 'ball', label: 'Partidas' },
-    { to: '/caixa', icon: 'wallet', label: 'Caixa' },
+    { to: '/caixa', icon: 'wallet', label: 'Mensalidade' },
     { to: '/perfil', icon: 'user', label: 'Perfil' },
   ]
   return (

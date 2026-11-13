@@ -87,7 +87,7 @@ function DuesTab({ settings, toast, onChange, ro }: { settings: Settings; toast:
     setOpen(null); load(); onChange()
   }
 
-  const cobranca = `💰 *MENSALIDADE REAL MARDITOS · ${monthName(month).toUpperCase()}*\nVence dia ${settings.due_day}.\n\nFaltam:\n${pend.map((d) => `• ${players[d.player_id]?.name} · ${brl(d.amount)}`).join('\n')}\n\nPague pelo Pix no app (aba Caixa)${settings.pix_key ? ` ou na chave ${settings.pix_key}` : ''}. Valeu!`
+  const cobranca = `💰 *MENSALIDADE REAL MARDITOS · ${monthName(month).toUpperCase()}*\nVence dia ${settings.due_day}.\n\nFaltam:\n${pend.map((d) => `• ${players[d.player_id]?.name} · ${brl(d.amount)}`).join('\n')}\n\nPague pelo Pix no app (aba Mensalidade)${settings.pix_key ? ` ou na chave ${settings.pix_key}` : ''}. Valeu!`
 
   return (
     <>

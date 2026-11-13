@@ -61,7 +61,7 @@ export default function Cash() {
     <main className="screen">
       <header>
         <p className="eyebrow">Mensalidades e prestação de contas</p>
-        <h1 className="h-xl" style={{ marginTop: 2 }}>Caixa</h1>
+        <h1 className="h-xl" style={{ marginTop: 2 }}>Mensalidade</h1>
       </header>
 
       {/* Minha mensalidade */}
