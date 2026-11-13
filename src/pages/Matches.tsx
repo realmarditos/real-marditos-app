@@ -8,6 +8,8 @@ import { errorText } from '../lib/supabase'
 import { formatDate, RoleTag } from '../components/ui'
 import { IMG } from '../lib/assets'
 import MatchFeed from '../components/MatchFeed'
+import ShareArt from '../components/ShareArt'
+import { MatchArt } from '../components/Arts'
 
 type AttP = Attendance & { players: Pick<Player, 'name' | 'is_goalkeeper' | 'is_guest'> & { role?: string | null } }
 
@@ -32,6 +34,7 @@ export default function Matches() {
   const [plist, setPlist] = useState<Record<string, Pick<Player, 'id' | 'name' | 'avatar'>>>({})
   const [zoom, setZoom] = useState<Match | null>(null)
   const [awarding, setAwarding] = useState<Match | null>(null)
+  const [sharing, setSharing] = useState<Match | null>(null)
   const { player: me } = useAuth()
   const reloadWinners = () => supabase.rpc('vote_winners').then(({ data }) => setWinners((data as VoteWinner[]) ?? []))
 
@@ -130,6 +133,11 @@ export default function Matches() {
                         </div>
                       ))}
                     </div>
+                    {m.score_preto != null && m.score_branco != null && (
+                      <button type="button" className="btn gold sm" style={{ margin: '0 16px 12px', width: 'calc(100% - 32px)' }} onClick={() => setSharing(m)}>
+                        Compartilhar resultado
+                      </button>
+                    )}
                     <Link to={`/votar/${m.id}`} className="between small" style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', textDecoration: 'none', color: 'var(--ink)' }}>
                       <span className="row" style={{ gap: 8 }}>
                         <img src={IMG.coroa} alt="" style={{ width: 22 }} />
@@ -162,6 +170,18 @@ export default function Matches() {
           </figure>
         </div>
       )}
+      {sharing && (() => {
+        const lu = (lineups[sharing.id] ?? []).filter((a) => a.played)
+        const side = (t: 'preto' | 'branco') => lu.filter((a) => a.team === t).map((a) => ({
+          id: a.player_id, name: a.players.name, avatar: plist[a.player_id]?.avatar, gk: a.players.is_goalkeeper, guest: a.players.is_guest,
+        }))
+        return (
+          <ShareArt title="Resultado para o grupo" file={`marditos-${sharing.date}`} text={`Real Marditos · ${formatDate(sharing.date)}`} onClose={() => setSharing(null)}>
+            <MatchArt date={sharing.date} venue={sharing.venue} preto={side('preto')} branco={side('branco')}
+              scorePreto={sharing.score_preto!} scoreBranco={sharing.score_branco!} photo={sharing.photo_url} mvp={award(sharing.id, 'mvp') || undefined} />
+          </ShareArt>
+        )
+      })()}
       {awarding && (
         <AwardSheet match={awarding} lineup={(lineups[awarding.id] ?? []).filter((a) => a.played)} winners={winners.filter((w) => w.match_id === awarding.id)}
           onClose={async (saved) => { setAwarding(null); if (saved) await reloadWinners() }} />
