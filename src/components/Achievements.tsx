@@ -1,4 +1,6 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
+import ShareArt from './ShareArt'
+import { RivalryArt, type RivalryKind } from './Arts'
 import { useHistory, badgesOf, rivalries, plural, type Badge, type BadgeId, type Pair } from '../lib/stats'
 import { IMG } from '../lib/assets'
 
@@ -26,29 +28,42 @@ function BadgeTile({ b }: { b: Badge }) {
   )
 }
 
-function PairCard({ label, hint, p, stat }: { label: string; hint: string; p: Pair | null; stat: (p: Pair) => string }) {
-  return (
-    <div className="card stack" style={{ gap: 2, padding: '12px 10px' }}>
+function PairCard({ label, hint, p, stat, onOpen }: { label: string; hint: string; p: Pair | null; stat: (p: Pair) => string; onOpen: () => void }) {
+  const body = (
+    <>
       <span className="eyebrow" style={{ fontSize: 11 }}>{label}</span>
       <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 20, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p ? p.name : '—'}</span>
       <span className="caption muted">{p ? stat(p) : hint}</span>
-    </div>
+      {p && <span className="caption" style={{ color: 'var(--brand-blue-bright)', fontWeight: 600, marginTop: 2 }}>Mandar no zap</span>}
+    </>
   )
+  return p
+    ? <button type="button" className="card stack" onClick={onOpen} style={{ gap: 2, padding: '12px 10px', textAlign: 'left', color: 'inherit', border: '1px solid var(--border)', cursor: 'pointer', minWidth: 0 }}>{body}</button>
+    : <div className="card stack" style={{ gap: 2, padding: '12px 10px', minWidth: 0 }}>{body}</div>
 }
 
 export function Rivalries({ playerId, self }: { playerId: string; self: boolean }) {
   const h = useHistory()
+  const [open, setOpen] = useState<RivalryKind | null>(null)
   if (!h) return null
   const { partner, nemesis, victim } = rivalries(h, playerId)
+  const me = { name: h.names[playerId] ?? '', avatar: h.avatars[playerId] }
+  const pick: Record<RivalryKind, Pair | null> = { dupla: partner, carrasco: nemesis, fregues: victim }
+  const shown = open ? pick[open] : null
   return (
     <section className="stack">
+      {open && shown && (
+        <ShareArt title={open === 'dupla' ? 'Dupla de ouro' : open === 'carrasco' ? 'Carrasco' : 'Freguês'} file={`marditos-${open}-${shown.name.toLowerCase()}`} onClose={() => setOpen(null)}>
+          <RivalryArt kind={open} me={me} other={{ name: shown.name, avatar: h.avatars[shown.id] }} games={shown.games} wins={shown.wins} losses={shown.losses} />
+        </ShareArt>
+      )}
       <h2 className="h-title">Duplas e rivalidades</h2>
       <div className="grid3">
-        <PairCard label={self ? 'Sua dupla' : 'Melhor dupla'} hint="Jogue mais juntos" p={partner} stat={(p) => `${plural(p.wins, 'vitória', 'vitórias')} em ${p.games} juntos`} />
-        <PairCard label={self ? 'Seu carrasco' : 'Carrasco'} hint="Ninguém ainda" p={nemesis} stat={(p) => `${plural(p.losses, 'derrota', 'derrotas')} em ${p.games}`} />
-        <PairCard label={self ? 'Seu freguês' : 'Freguês'} hint="Ninguém ainda" p={victim} stat={(p) => `${plural(p.wins, 'vitória', 'vitórias')} em ${p.games}`} />
+        <PairCard label={self ? 'Sua dupla' : 'Melhor dupla'} hint="Jogue mais juntos" p={partner} stat={(p) => `${plural(p.wins, 'vitória', 'vitórias')} em ${p.games} juntos`} onOpen={() => setOpen('dupla')} />
+        <PairCard label={self ? 'Seu carrasco' : 'Carrasco'} hint="Ninguém ainda" p={nemesis} stat={(p) => `${plural(p.losses, 'derrota', 'derrotas')} em ${p.games}`} onOpen={() => setOpen('carrasco')} />
+        <PairCard label={self ? 'Seu freguês' : 'Freguês'} hint="Ninguém ainda" p={victim} stat={(p) => `${plural(p.wins, 'vitória', 'vitórias')} em ${p.games}`} onOpen={() => setOpen('fregues')} />
       </div>
-      <p className="caption muted" style={{ margin: 0 }}>Contam jogos pelo app, a partir de 2 partidas com ou contra a pessoa.</p>
+      <p className="caption muted" style={{ margin: 0 }}>Contam jogos pelo app, a partir de 2 partidas com ou contra a pessoa. Toque para gerar a arte e mandar no grupo.</p>
     </section>
   )
 }

@@ -4,7 +4,7 @@
  */
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
-import type { Match, Team, VoteWinner } from './types'
+import type { AvatarOptions, Match, Team, VoteWinner } from './types'
 
 export type Result = 'V' | 'E' | 'D'
 export type Game = { match: Match; team: Team; result: Result }
@@ -14,6 +14,7 @@ export type History = {
   lineups: Lineup[]
   winners: VoteWinner[]
   names: Record<string, string>
+  avatars: Record<string, AvatarOptions | null>
   guests: Set<string>
 }
 
@@ -24,14 +25,15 @@ export function useHistory() {
       supabase.from('matches').select('*').eq('status', 'encerrada').order('date'),
       supabase.from('attendances').select('match_id,player_id,team,played').eq('played', true).not('team', 'is', null),
       supabase.rpc('vote_winners'),
-      supabase.from('players').select('id,name,is_guest'),
+      supabase.from('players').select('id,name,is_guest,avatar'),
     ]).then(([{ data: m }, { data: a }, { data: w }, { data: p }]) => {
-      const ps = (p as { id: string; name: string; is_guest: boolean }[]) ?? []
+      const ps = (p as { id: string; name: string; is_guest: boolean; avatar: AvatarOptions | null }[]) ?? []
       setH({
         matches: ((m as Match[]) ?? []).filter((x) => x.score_preto != null && x.score_branco != null),
         lineups: (a as Lineup[]) ?? [],
         winners: (w as VoteWinner[]) ?? [],
         names: Object.fromEntries(ps.map((x) => [x.id, x.name])),
+        avatars: Object.fromEntries(ps.map((x) => [x.id, x.avatar])),
         guests: new Set(ps.filter((x) => x.is_guest).map((x) => x.id)),
       })
     })

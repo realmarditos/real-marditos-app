@@ -3,13 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../lib/auth'
 import type { RankingRow } from '../lib/types'
-import { Avatar } from '../components/ui'
+import { Avatar, Icon } from '../components/ui'
+import ShareArt from '../components/ShareArt'
+import { RankingArt } from '../components/Arts'
 import { IMG } from '../lib/assets'
 
 export default function Ranking() {
   const { player } = useAuth()
   const nav = useNavigate()
   const [rows, setRows] = useState<RankingRow[] | null>(null)
+  const [sharing, setSharing] = useState(false)
   const season = new Date().getFullYear()
 
   useEffect(() => {
@@ -22,10 +25,22 @@ export default function Ranking() {
 
   return (
     <main className="screen">
-      <header>
-        <p className="eyebrow">Temporada {season}</p>
-        <h1 className="h-xl" style={{ marginTop: 2 }}>Ranking</h1>
+      <header className="between" style={{ alignItems: 'flex-end' }}>
+        <div>
+          <p className="eyebrow">Temporada {season}</p>
+          <h1 className="h-xl" style={{ marginTop: 2 }}>Ranking</h1>
+        </div>
+        {rows.length > 0 && (
+          <button className="btn sm gold pill" onClick={() => setSharing(true)} aria-label="Mandar o ranking no WhatsApp">
+            <Icon name="whatsapp" size={18} />Compartilhar
+          </button>
+        )}
       </header>
+      {sharing && (
+        <ShareArt title="Ranking para o grupo" file={`ranking-marditos-${season}`} text={`Ranking Real Marditos ${season}`} onClose={() => setSharing(false)}>
+          <RankingArt rows={rows} season={season} />
+        </ShareArt>
+      )}
 
       {first && (
         <section className="card lg stripes" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 8, paddingBottom: 0 }}>
