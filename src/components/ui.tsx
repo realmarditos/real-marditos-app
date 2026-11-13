@@ -89,7 +89,7 @@ export function AdminHeader({ title, right }: { title: string; right?: ReactNode
     <header className="stack" style={{ gap: 10 }}>
       <div className="between">
         <span className="badge-adm">Diretoria</span>
-        <Link to="/" className="small" style={{ textDecoration: 'none' }}>Voltar ao app</Link>
+        <Link to="/" className="btn sm blue" style={{ textDecoration: 'none' }}>Voltar para área de membro</Link>
       </div>
       <div className="between" style={{ alignItems: 'flex-end' }}>
         <h1 className="h-xl">{title}</h1>
