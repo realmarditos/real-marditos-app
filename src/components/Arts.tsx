@@ -182,7 +182,10 @@ export function MatchArt({ date, venue, preto, branco, scorePreto, scoreBranco, 
         <Av a={p.avatar} seed={p.name} size={34} />
         {isMvp(p.id) && <img src={IMG.coroa} alt="" style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%) rotate(-8deg)', width: 24 }} />}
       </div>
-      <span style={{ fontSize: 11, fontWeight: 700, maxWidth: '100%', ...nowrap }}>{p.name}{mark(p) && <span style={{ color: GOLD, fontSize: 9 }}>{mark(p)}</span>}{isMvp(p.id) && <span style={{ color: GOLD, fontSize: 9 }}> · MVP</span>}</span>
+      <span style={{ fontSize: 10, fontWeight: 700, maxWidth: '100%', ...nowrap }}>{p.name}</span>
+      <span style={{ fontSize: 8, fontWeight: 800, letterSpacing: '.06em', color: GOLD, height: 10, lineHeight: '10px', marginTop: -2, ...nowrap }}>
+        {[isMvp(p.id) && 'MVP', p.gk && 'GOL', p.guest && 'CONV.'].filter(Boolean).join(' · ')}
+      </span>
     </div>
   )
   const Loser = ({ p }: { p: ArtPlayer }) => (
@@ -213,7 +216,7 @@ export function MatchArt({ date, venue, preto, branco, scorePreto, scoreBranco, 
       </p>
 
       {photo && (
-        <div style={{ position: 'relative', margin: '0 16px 10px', height: 118, borderRadius: 14, overflow: 'hidden', border: `2px solid ${GOLD}`, background: SURFACE, flex: '0 0 auto' }}>
+        <div style={{ position: 'relative', margin: '0 16px 10px', height: 156, borderRadius: 14, overflow: 'hidden', border: `2px solid ${GOLD}`, background: SURFACE, flex: '0 0 auto' }}>
           {photoData && <img src={photoData} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />}
           <span style={{ position: 'absolute', left: 8, bottom: 8, background: GOLD, color: NAVY, fontSize: 9, fontWeight: 800, letterSpacing: '.12em', padding: '3px 8px', borderRadius: 999, ...nowrap }}>MARDITOS DA NOITE</span>
         </div>
@@ -227,9 +230,9 @@ export function MatchArt({ date, venue, preto, branco, scorePreto, scoreBranco, 
           </>
         ) : (
           <>
-            <div style={{ padding: '8px 6px', background: SURFACE, borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ padding: '10px 4px 8px', background: SURFACE, borderRadius: 14, display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ textAlign: 'center' }}>{label('★ VENCEDORES ★', GOLD)}</div>
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(winners.length, winners.length > 6 ? 4 : 3) || 1}, minmax(0, 1fr))`, gap: 6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${winners.length > 7 ? Math.ceil(winners.length / 2) : Math.max(winners.length, 1)}, minmax(0, 1fr))`, gap: 2, rowGap: 16 }}>
                 {winners.map((p) => <Winner key={p.id} p={p} />)}
               </div>
             </div>
